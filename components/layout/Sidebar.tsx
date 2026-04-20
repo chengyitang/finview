@@ -1,0 +1,92 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const nav = [
+  {
+    label: "Overview",
+    href: "/",
+    icon: "◉",
+  },
+  {
+    label: "Income",
+    href: "/income",
+    icon: "💵",
+  },
+  {
+    label: "Tax",
+    href: "/tax",
+    icon: "🧾",
+  },
+  {
+    label: "Retirement",
+    icon: "🏦",
+    children: [
+      { label: "401(k)", href: "/retirement/401k" },
+      { label: "HSA", href: "/retirement/hsa" },
+      { label: "IRA / Roth IRA", href: "/retirement/ira" },
+    ],
+  },
+  {
+    label: "Investment",
+    icon: "📈",
+    children: [
+      { label: "Portfolio", href: "/investment/portfolio" },
+      { label: "RSU", href: "/investment/rsu" },
+    ],
+  },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="w-56 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col min-h-screen">
+      <div className="px-5 py-5 border-b border-zinc-800">
+        <span className="text-white font-bold text-lg tracking-tight">FinView</span>
+        <p className="text-zinc-500 text-xs mt-0.5">Personal Finance Hub</p>
+      </div>
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {nav.map((item) =>
+          item.children ? (
+            <div key={item.label} className="pt-3">
+              <p className="px-2 mb-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                {item.icon} {item.label}
+              </p>
+              {item.children.map((child) => (
+                <Link
+                  key={child.href}
+                  href={child.href}
+                  className={`flex items-center px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    pathname === child.href
+                      ? "bg-indigo-600 text-white"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  }`}
+                >
+                  {child.label}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Link
+              key={item.href}
+              href={item.href!}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                pathname === item.href
+                  ? "bg-indigo-600 text-white"
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+              }`}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </Link>
+          )
+        )}
+      </nav>
+      <div className="px-4 py-3 border-t border-zinc-800">
+        <p className="text-xs text-zinc-600">Data stored in your browser only.</p>
+      </div>
+    </aside>
+  );
+}
