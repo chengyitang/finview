@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FinView
+
+A personal finance hub that runs entirely in your browser — no accounts, no cloud sync, no data leaves your device.
+
+**Live demo**: https://finview-zeta.vercel.app
+
+## Features
+
+- **Income** — track salary, bonuses, and other income by month
+- **Tax** — estimate federal and state tax liability by year
+- **Retirement** — log 401(k), HSA, and IRA/Roth IRA contributions and balances
+- **Stock Portfolio** — track US and Taiwan stocks with live prices; pure-numeric tickers (e.g. `2330`) are auto-detected as Taiwan stocks (`.TW`)
+- **RSU** — calculate vested/unvested value across multiple grants; built-in vesting schedules for Amazon, Google, Meta, NVIDIA, Netflix, Microsoft, and Apple
+
+All data is saved in `localStorage`. Nothing is sent to any server.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Stock price lookups work out of the box via Yahoo Finance (no key needed). Optionally set an Alpha Vantage key for higher-quality US equity quotes:
 
-## Learn More
+```bash
+# .env.local
+ALPHA_VANTAGE_API_KEY=your_key_here
+```
 
-To learn more about Next.js, take a look at the following resources:
+Get a free key at [alphavantage.co](https://www.alphavantage.co/support/#api-key). When the key is absent the app falls back to Yahoo Finance automatically.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+If deploying to Vercel, add the variable via the dashboard (**Project → Settings → Environment Variables**) or CLI:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+vercel env add ALPHA_VANTAGE_API_KEY
+```
 
-## Deploy on Vercel
+## Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 16 (App Router) · React 19 · TypeScript
+- Tailwind CSS v4 · Recharts
