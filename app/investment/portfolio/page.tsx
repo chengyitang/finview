@@ -13,13 +13,6 @@ import {
 const TX_TYPES = ["Buy", "Sell", "Dividend", "Split"] as const;
 const COLORS = ["#3b82f6", "#22d3ee", "#f59e0b", "#10b981", "#f43f5e", "#8b5cf6", "#ec4899", "#14b8a6"];
 
-const TICKER_COLORS: Record<string, string> = {
-  AAPL: "#555555", MSFT: "#00a4ef", GOOGL: "#4285f4", GOOG: "#4285f4",
-  META: "#0866ff", AMZN: "#ff9900", TSLA: "#e31937", NVDA: "#76b900",
-  NFLX: "#e50914", AMD: "#ed1c24", INTC: "#0071c5", TSM: "#00a3e0",
-  BABA: "#ff6a00", "2330.TW": "#00a3e0", "2454.TW": "#e60026",
-};
-
 const EMPTY_FORM = {
   date: new Date().toISOString().slice(0, 10),
   ticker: "",
@@ -117,6 +110,52 @@ export default function PortfolioPage() {
     saveTransactions(updated);
   }
 
+  function exportCSV() {
+    const header = "date,ticker,stockName,type,shares,price,fee";
+    const rows = transactions.map((tx) =>
+      [tx.date, tx.ticker, tx.stockName, tx.type, tx.shares, tx.price, tx.fee].join(",")
+    );
+    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `finview-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importCSV(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const lines = (ev.target?.result as string).trim().split(/\r?\n/);
+      const newTxs: Transaction[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(",");
+        if (parts.length < 6) continue;
+        const [date, ticker, stockName, type, shares, price, fee = "0"] = parts.map((p) => p.trim());
+        if (!date || !ticker || !TX_TYPES.includes(type as Transaction["type"])) continue;
+        newTxs.push({
+          id: crypto.randomUUID(),
+          date,
+          ticker: ticker.toUpperCase(),
+          stockName: stockName ?? "",
+          type: type as Transaction["type"],
+          shares: parseFloat(shares) || 0,
+          price: parseFloat(price) || 0,
+          fee: parseFloat(fee) || 0,
+        });
+      }
+      if (newTxs.length === 0) return;
+      const updated = [...transactions, ...newTxs].sort((a, b) => a.date.localeCompare(b.date));
+      setTransactions(updated);
+      saveTransactions(updated);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
   const { active, closed } = aggregatePortfolio(transactions, prices, fxRate, displayCurrency);
   const trend = calcRealizedTrend(transactions, fxRate, displayCurrency);
 
@@ -206,8 +245,8 @@ export default function PortfolioPage() {
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name}>
-                    {pieData.map((entry, i) => (
-                      <Cell key={i} fill={TICKER_COLORS[entry.name] ?? COLORS[i % COLORS.length]} />
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -228,7 +267,7 @@ export default function PortfolioPage() {
                   <XAxis dataKey="year" tick={{ fill: "#71717a", fontSize: 12 }} />
                   <YAxis tick={{ fill: "#71717a", fontSize: 12 }} />
                   <Tooltip formatter={(v) => `${cSym}${fmt2(Number(v))}`} />
-                  <Bar dataKey="gain" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="gain" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -249,10 +288,20 @@ export default function PortfolioPage() {
           </button>
         ))}
         <div className="flex-1" />
-        <button onClick={() => setShowForm(!showForm)}
-          className="mb-1 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium">
-          + Add Transaction
-        </button>
+        <div className="flex items-center gap-2 mb-1">
+          <button onClick={exportCSV}
+            className="px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+            Export CSV
+          </button>
+          <label className="px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+            Import CSV
+            <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
+          </label>
+          <button onClick={() => setShowForm(!showForm)}
+            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium">
+            + Add Transaction
+          </button>
+        </div>
       </div>
 
       {/* Add Transaction Form */}
