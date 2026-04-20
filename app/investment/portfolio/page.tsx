@@ -135,7 +135,7 @@ export default function PortfolioPage() {
         return marketFilter === "TW" ? isTW : !isTW;
       });
 
-  const pieData = active.map((p) => ({ name: p.symbol, value: p.marketValue }));
+  const pieData = active.filter((p) => p.marketValue > 0).map((p) => ({ name: p.symbol, value: p.marketValue }));
   const trendData = Object.entries(trend)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([year, gain]) => ({ year, gain: parseFloat(gain.toFixed(2)) }));
@@ -143,7 +143,7 @@ export default function PortfolioPage() {
   const btnFilter = (f: MarketFilter) =>
     `px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${
       marketFilter === f
-        ? "bg-indigo-600 border-indigo-500 text-white"
+        ? "bg-blue-600 border-blue-500 text-white"
         : "border-gray-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
     }`;
 
@@ -167,7 +167,7 @@ export default function PortfolioPage() {
             <button key={c} onClick={() => setDisplayCurrency(c)}
               className={`px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${
                 displayCurrency === c
-                  ? "bg-indigo-600 border-indigo-500 text-white"
+                  ? "bg-blue-600 border-blue-500 text-white"
                   : "border-gray-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
               }`}>
               {c}
@@ -227,7 +227,7 @@ export default function PortfolioPage() {
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-sm font-medium transition-colors capitalize ${
               activeTab === tab
-                ? "text-zinc-900 dark:text-white border-b-2 border-indigo-500"
+                ? "text-zinc-900 dark:text-white border-b-2 border-blue-500"
                 : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             }`}>
             {tab === "active" ? "Active Positions" : tab === "closed" ? "Closed Positions" : "Transactions"}
@@ -235,7 +235,7 @@ export default function PortfolioPage() {
         ))}
         <div className="flex-1" />
         <button onClick={() => setShowForm(!showForm)}
-          className="mb-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium">
+          className="mb-1 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium">
           + Add Transaction
         </button>
       </div>
@@ -295,7 +295,7 @@ export default function PortfolioPage() {
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={addTransaction}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
               Add
             </button>
             <button onClick={() => setShowForm(false)}

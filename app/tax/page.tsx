@@ -120,7 +120,7 @@ export default function TaxPage() {
           </div>
         </div>
         <button onClick={upsert}
-          className="mt-3 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+          className="mt-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
           Save
         </button>
       </div>

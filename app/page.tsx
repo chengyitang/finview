@@ -43,7 +43,7 @@ const sections = [
     href: "/investment/portfolio",
     desc: "Track US and Taiwan stocks with live prices. No file uploads — data saved in your browser.",
     icon: "📊",
-    color: "border-indigo-600 dark:border-indigo-700",
+    color: "border-blue-600 dark:border-blue-700",
   },
   {
     title: "RSU",

@@ -179,6 +179,11 @@ export default function RSUPage() {
   const typedGroups = companiesWithGrants as CompanyGroup[];
   const totalVested = typedGroups.reduce((s, c) => s + c.summary.vestedValue, 0);
   const totalUnvested = typedGroups.reduce((s, c) => s + c.summary.unvestedValue, 0);
+  const totalGrantValue = typedGroups.reduce(
+    (s, { grants: cGrants }) => s + cGrants.reduce((g, gr) => g + (gr.originalValueUSD ?? 0), 0), 0
+  );
+  const grantPL = (totalVested + totalUnvested) - totalGrantValue;
+  const grantPLPct = totalGrantValue > 0 ? (grantPL / totalGrantValue) * 100 : 0;
 
   const selectedCompany = allCompanies.find((c) => c.id === selectedCompanyId);
 
@@ -191,10 +196,19 @@ export default function RSUPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className={`grid gap-4 mb-6 ${totalGrantValue > 0 ? "grid-cols-4" : "grid-cols-3"}`}>
         <KPICard label="Total Vested Value" value={`$${fmt2(totalVested)}`} />
         <KPICard label="Total Unvested Value" value={`$${fmt2(totalUnvested)}`} />
         <KPICard label="Total Portfolio Value" value={`$${fmt2(totalVested + totalUnvested)}`} />
+        {totalGrantValue > 0 && (
+          <KPICard
+            label="vs. Grant Value"
+            value={`${grantPL >= 0 ? "+" : "-"}$${fmt2(Math.abs(grantPL))}`}
+            sub={`${grantPLPct >= 0 ? "▲" : "▼"} ${Math.abs(grantPLPct).toFixed(1)}% from $${fmt2(totalGrantValue)}`}
+            positive={grantPL >= 0}
+            negative={grantPL < 0}
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -206,7 +220,7 @@ export default function RSUPage() {
           ))}
         </select>
         <button onClick={() => { setShowGrantForm(!showGrantForm); setShowCompanyForm(false); }}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
           + Add Grant
         </button>
         <button onClick={() => { setShowCompanyForm(!showCompanyForm); setShowGrantForm(false); }}
@@ -271,7 +285,7 @@ export default function RSUPage() {
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={addGrant}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
               Add Grant
             </button>
             <button onClick={() => setShowGrantForm(false)}
@@ -317,7 +331,7 @@ export default function RSUPage() {
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={addCustomCompany}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
               Add Company
             </button>
             <button onClick={() => setShowCompanyForm(false)}

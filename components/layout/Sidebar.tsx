@@ -50,7 +50,7 @@ export default function Sidebar() {
                   href={child.href}
                   className={`flex items-center px-3 py-1.5 rounded-md text-sm transition-colors ${
                     pathname === child.href
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-blue-600 text-white"
                       : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800"
                   }`}
                 >
@@ -64,7 +64,7 @@ export default function Sidebar() {
               href={item.href!}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
                 pathname === item.href
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-blue-600 text-white"
                   : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800"
               }`}
             >
