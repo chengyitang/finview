@@ -7,6 +7,8 @@ import KPICard from "@/components/ui/KPICard";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+const INPUT = "w-full bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100";
+
 export default function TaxPage() {
   const [entries, setEntries] = useState<TaxEntry[]>([]);
   const [form, setForm] = useState({
@@ -63,7 +65,7 @@ export default function TaxPage() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Tax</h1>
-      <p className="text-zinc-400 text-sm mb-6">Track estimated taxes owed vs. paid by year.</p>
+      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">Track estimated taxes owed vs. paid by year.</p>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         <KPICard label={`${CURRENT_YEAR} Total Owed`} value={fmt(totalOwed)} />
@@ -77,44 +79,44 @@ export default function TaxPage() {
         />
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-6">
         <h2 className="font-semibold mb-3">Add / Update Year</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Year</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
             <input type="number" value={form.year}
               onChange={(e) => setForm((f) => ({ ...f, year: +e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Federal Owed</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Federal Owed</label>
             <input type="number" placeholder="0" value={form.federalOwed}
               onChange={(e) => setForm((f) => ({ ...f, federalOwed: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">State Owed</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">State Owed</label>
             <input type="number" placeholder="0" value={form.stateOwed}
               onChange={(e) => setForm((f) => ({ ...f, stateOwed: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Federal Paid (Withheld)</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Federal Paid (Withheld)</label>
             <input type="number" placeholder="0" value={form.federalPaid}
               onChange={(e) => setForm((f) => ({ ...f, federalPaid: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">State Paid (Withheld)</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">State Paid (Withheld)</label>
             <input type="number" placeholder="0" value={form.statePaid}
               onChange={(e) => setForm((f) => ({ ...f, statePaid: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Notes</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Notes</label>
             <input type="text" placeholder="Optional" value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
         </div>
         <button onClick={upsert}
@@ -123,10 +125,10 @@ export default function TaxPage() {
         </button>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-400">
+            <tr className="border-b border-gray-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">
               <th className="text-left px-4 py-3">Year</th>
               <th className="text-right px-4 py-3">Fed Owed</th>
               <th className="text-right px-4 py-3">State Owed</th>
@@ -138,21 +140,21 @@ export default function TaxPage() {
           </thead>
           <tbody>
             {entries.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-500">No tax records yet.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">No tax records yet.</td></tr>
             ) : entries.map((e) => {
               const bal = (e.federalOwed + e.stateOwed) - (e.federalPaid + e.statePaid);
               return (
-                <tr key={e.year} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer" onClick={() => loadEntry(e)}>
+                <tr key={e.year} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30 cursor-pointer" onClick={() => loadEntry(e)}>
                   <td className="px-4 py-3 font-medium">{e.year}</td>
                   <td className="px-4 py-3 text-right font-mono">{fmt(e.federalOwed)}</td>
                   <td className="px-4 py-3 text-right font-mono">{fmt(e.stateOwed)}</td>
                   <td className="px-4 py-3 text-right font-mono">{fmt(e.federalPaid)}</td>
                   <td className="px-4 py-3 text-right font-mono">{fmt(e.statePaid)}</td>
-                  <td className={`px-4 py-3 text-right font-mono ${bal > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                  <td className={`px-4 py-3 text-right font-mono ${bal > 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                     {bal > 0 ? `+${fmt(bal)}` : fmt(Math.abs(bal))}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={(ev) => { ev.stopPropagation(); remove(e.year); }} className="text-zinc-600 hover:text-red-400 text-xs">✕</button>
+                    <button onClick={(ev) => { ev.stopPropagation(); remove(e.year); }} className="text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
                   </td>
                 </tr>
               );

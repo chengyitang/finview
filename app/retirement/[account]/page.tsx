@@ -14,6 +14,8 @@ const ACCOUNT_META: Record<string, { label: string; type: RetirementAccount["typ
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+const INPUT = "w-full bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100";
+
 export default function RetirementPage() {
   const { account } = useParams<{ account: string }>();
   const meta = ACCOUNT_META[account] ?? ACCOUNT_META["401k"];
@@ -60,7 +62,7 @@ export default function RetirementPage() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">{meta.label}</h1>
-      <p className="text-zinc-400 text-sm mb-6">
+      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">
         {CURRENT_YEAR} contribution limit: {fmt(meta.limit2024)}
       </p>
 
@@ -70,40 +72,40 @@ export default function RetirementPage() {
         <KPICard label="All-Time Contributions" value={fmt(totalContrib)} />
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-6">
         <h2 className="font-semibold mb-3">Add / Update Year</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Year</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
             <input type="number" value={form.year}
               onChange={(e) => setForm((f) => ({ ...f, year: +e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Contributions</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Contributions</label>
             <input type="number" placeholder="0" value={form.contributions}
               onChange={(e) => setForm((f) => ({ ...f, contributions: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
           {meta.type === "401k" && (
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Employer Match</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Employer Match</label>
               <input type="number" placeholder="0" value={form.employerMatch}
                 onChange={(e) => setForm((f) => ({ ...f, employerMatch: e.target.value }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+                className={INPUT} />
             </div>
           )}
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Balance (end of year)</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Balance (end of year)</label>
             <input type="number" placeholder="0" value={form.balance}
               onChange={(e) => setForm((f) => ({ ...f, balance: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Notes</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Notes</label>
             <input type="text" placeholder="Optional" value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+              className={INPUT} />
           </div>
         </div>
         <button onClick={upsert}
@@ -112,10 +114,10 @@ export default function RetirementPage() {
         </button>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-400">
+            <tr className="border-b border-gray-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">
               <th className="text-left px-4 py-3">Year</th>
               <th className="text-right px-4 py-3">Contributions</th>
               {meta.type === "401k" && <th className="text-right px-4 py-3">Employer Match</th>}
@@ -126,16 +128,16 @@ export default function RetirementPage() {
           </thead>
           <tbody>
             {entries.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-500">No records yet.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">No records yet.</td></tr>
             ) : entries.map((e) => (
-              <tr key={e.year} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+              <tr key={e.year} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
                 <td className="px-4 py-3 font-medium">{e.year}</td>
                 <td className="px-4 py-3 text-right font-mono">{fmt(e.contributions)}</td>
-                {meta.type === "401k" && <td className="px-4 py-3 text-right font-mono text-emerald-400">{fmt(e.employerMatch ?? 0)}</td>}
+                {meta.type === "401k" && <td className="px-4 py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">{fmt(e.employerMatch ?? 0)}</td>}
                 <td className="px-4 py-3 text-right font-mono">{fmt(e.balance)}</td>
-                <td className="px-4 py-3 text-zinc-400 text-xs">{e.notes}</td>
+                <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 text-xs">{e.notes}</td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => remove(e.year)} className="text-zinc-600 hover:text-red-400 text-xs">✕</button>
+                  <button onClick={() => remove(e.year)} className="text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
                 </td>
               </tr>
             ))}

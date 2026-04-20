@@ -30,6 +30,8 @@ const VESTING_PRESETS: Record<string, { label: string; tranches: Company["tranch
 const fmt2 = (n: number) =>
   n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const INPUT = "w-full bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100";
+
 export default function RSUPage() {
   const [grants, setGrants] = useState<Grant[]>([]);
   const [customCompanies, setCustomCompanies] = useState<Company[]>([]);
@@ -162,7 +164,6 @@ export default function RSUPage() {
     setSelectedCompanyId(company.id);
   }
 
-  // Group grants by company
   const companiesWithGrants = allCompanies
     .map((company) => {
       const companyGrants = grants.filter((g) => g.companyId === company.id);
@@ -186,7 +187,7 @@ export default function RSUPage() {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-2xl font-bold">RSU Tracker</h1>
-          <p className="text-zinc-400 text-sm">Track vesting schedules across companies. Data stored in your browser.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Track vesting schedules across companies. Data stored in your browser.</p>
         </div>
       </div>
 
@@ -196,13 +197,10 @@ export default function RSUPage() {
         <KPICard label="Total Portfolio Value" value={`$${fmt2(totalVested + totalUnvested)}`} />
       </div>
 
-      {/* Company selector + add grant */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <select
-          value={selectedCompanyId}
+        <select value={selectedCompanyId}
           onChange={(e) => setSelectedCompanyId(e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
-        >
+          className="bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
           {allCompanies.map((c) => (
             <option key={c.id} value={c.id}>{c.name} ({c.ticker}){c.custom ? " *" : ""}</option>
           ))}
@@ -212,64 +210,63 @@ export default function RSUPage() {
           + Add Grant
         </button>
         <button onClick={() => { setShowCompanyForm(!showCompanyForm); setShowGrantForm(false); }}
-          className="border border-zinc-700 hover:bg-zinc-800 text-zinc-300 px-4 py-2 rounded-lg text-sm">
+          className="border border-gray-300 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-4 py-2 rounded-lg text-sm">
           + Custom Company
         </button>
       </div>
 
-      {/* Add Grant Form */}
       {showGrantForm && selectedCompany && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
+        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-4">
           <h3 className="font-semibold mb-3">New Grant — {selectedCompany.name}</h3>
           {selectedCompany.priceMethod === "30day-trailing-avg" && (
-            <p className="text-xs text-amber-400 mb-3">Amazon uses 30-day trailing average price. Provide your onboard date to auto-calculate.</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">Amazon uses 30-day trailing average price. Provide your onboard date to auto-calculate.</p>
           )}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Grant Date</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Grant Date</label>
               <input type="date" value={grantForm.grantDate}
                 onChange={(e) => setGrantForm((f) => ({ ...f, grantDate: e.target.value }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+                className={INPUT} />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Input Mode</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Input Mode</label>
               <select value={grantForm.mode}
                 onChange={(e) => setGrantForm((f) => ({ ...f, mode: e.target.value as "shares" | "dollars" }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm">
+                className={INPUT}>
                 <option value="shares">By share count</option>
                 <option value="dollars">By dollar value</option>
               </select>
             </div>
             {grantForm.mode === "shares" ? (
               <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Total Shares</label>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Total Shares</label>
                 <input type="number" placeholder="400" value={grantForm.totalShares}
                   onChange={(e) => setGrantForm((f) => ({ ...f, totalShares: e.target.value }))}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+                  className={INPUT} />
               </div>
             ) : (
               <>
                 <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">Grant Value (USD)</label>
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Grant Value (USD)</label>
                   <input type="number" placeholder="200000" value={grantForm.dollarValue}
                     onChange={(e) => setGrantForm((f) => ({ ...f, dollarValue: e.target.value }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+                    className={INPUT} />
                 </div>
                 {selectedCompany.priceMethod === "30day-trailing-avg" && (
                   <div>
-                    <label className="text-xs text-zinc-400 mb-1 block">Onboard Date</label>
+                    <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Onboard Date</label>
                     <input type="date" value={grantForm.onboardDate}
                       onChange={(e) => setGrantForm((f) => ({ ...f, onboardDate: e.target.value }))}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+                      className={INPUT} />
                   </div>
                 )}
               </>
             )}
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Label (optional)</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Label (optional)</label>
               <input type="text" placeholder="Signing bonus" value={grantForm.label}
                 onChange={(e) => setGrantForm((f) => ({ ...f, label: e.target.value }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+                className={INPUT} />
             </div>
           </div>
           <div className="flex gap-2 mt-3">
@@ -278,35 +275,34 @@ export default function RSUPage() {
               Add Grant
             </button>
             <button onClick={() => setShowGrantForm(false)}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm">
+              className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-4 py-2 rounded-lg text-sm">
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      {/* Add Custom Company Form */}
       {showCompanyForm && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
+        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-4">
           <h3 className="font-semibold mb-3">Add Custom Company</h3>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Company Name</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Company Name</label>
               <input type="text" placeholder="Acme Corp" value={companyForm.name}
                 onChange={(e) => setCompanyForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm" />
+                className={INPUT} />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Ticker</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Ticker</label>
               <input type="text" placeholder="ACME" value={companyForm.ticker}
                 onChange={(e) => setCompanyForm((f) => ({ ...f, ticker: e.target.value }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm uppercase" />
+                className={`${INPUT} uppercase`} />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Vesting Schedule</label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Vesting Schedule</label>
               <select value={companyForm.preset}
                 onChange={(e) => setCompanyForm((f) => ({ ...f, preset: e.target.value }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm">
+                className={INPUT}>
                 {Object.entries(VESTING_PRESETS).map(([k, v]) => (
                   <option key={k} value={k}>{v.label}</option>
                 ))}
@@ -316,7 +312,7 @@ export default function RSUPage() {
               <input type="checkbox" id="private-co" checked={companyForm.isPrivate}
                 onChange={(e) => setCompanyForm((f) => ({ ...f, isPrivate: e.target.checked }))}
                 className="rounded" />
-              <label htmlFor="private-co" className="text-sm text-zinc-300">Private company (manual price)</label>
+              <label htmlFor="private-co" className="text-sm text-zinc-600 dark:text-zinc-300">Private company (manual price)</label>
             </div>
           </div>
           <div className="flex gap-2 mt-3">
@@ -325,41 +321,40 @@ export default function RSUPage() {
               Add Company
             </button>
             <button onClick={() => setShowCompanyForm(false)}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm">
+              className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-4 py-2 rounded-lg text-sm">
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      {/* Grants list */}
       {companiesWithGrants.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500">
+        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-12 text-center text-zinc-400 dark:text-zinc-500">
           No grants yet. Select a company and click "+ Add Grant".
         </div>
       ) : (
         <div className="space-y-4">
           {typedGroups.map(({ company, grants: cGrants, price, summary }) => (
-            <div key={company.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+            <div key={company.id} className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-zinc-800">
                 <div>
                   <span className="font-semibold">{company.name}</span>
-                  <span className="ml-2 text-zinc-400 text-sm">{company.ticker}</span>
-                  {loading[company.ticker] && <span className="ml-2 text-xs text-zinc-500">Loading price...</span>}
+                  <span className="ml-2 text-zinc-500 dark:text-zinc-400 text-sm">{company.ticker}</span>
+                  {loading[company.ticker] && <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500">Loading price...</span>}
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   {price > 0 && (
-                    <span className="text-zinc-400">Price: <span className="text-white font-mono">${fmt2(price)}</span></span>
+                    <span className="text-zinc-500 dark:text-zinc-400">Price: <span className="text-zinc-900 dark:text-white font-mono">${fmt2(price)}</span></span>
                   )}
-                  <span className="text-emerald-400">Vested: <span className="font-mono">${fmt2(summary.vestedValue)}</span></span>
-                  <span className="text-zinc-300">Unvested: <span className="font-mono">${fmt2(summary.unvestedValue)}</span></span>
+                  <span className="text-emerald-600 dark:text-emerald-400">Vested: <span className="font-mono">${fmt2(summary.vestedValue)}</span></span>
+                  <span className="text-zinc-600 dark:text-zinc-300">Unvested: <span className="font-mono">${fmt2(summary.unvestedValue)}</span></span>
                   <button onClick={() => fetchPrice(company.ticker)}
-                    className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-700 px-2 py-1 rounded">
+                    className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-gray-300 dark:border-zinc-700 px-2 py-1 rounded">
                     Refresh
                   </button>
                 </div>
               </div>
-              <div className="divide-y divide-zinc-800/50">
+              <div className="divide-y divide-gray-100 dark:divide-zinc-800/50">
                 {cGrants.map((grant: Grant) => {
                   const events = getVestingEvents(grant, company);
                   const grantSummary = calcTotalValue(events, price);
@@ -367,34 +362,34 @@ export default function RSUPage() {
                   return (
                     <div key={grant.id}>
                       <div
-                        className="flex items-center justify-between px-5 py-3 hover:bg-zinc-800/30 cursor-pointer"
+                        className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800/30 cursor-pointer"
                         onClick={() => setExpandedGrant(isExpanded ? null : grant.id)}
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-sm">{isExpanded ? "▾" : "▸"}</span>
                           <div>
                             <p className="text-sm font-medium">{grant.label || `Grant — ${grant.grantDate}`}</p>
-                            <p className="text-xs text-zinc-500">
+                            <p className="text-xs text-zinc-400 dark:text-zinc-500">
                               {grant.totalShares.toLocaleString()} shares · Granted {grant.grantDate}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4 text-sm">
-                          <span className="text-emerald-400 font-mono">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-mono">
                             {grantSummary.vestedShares.toLocaleString()} vested (${fmt2(grantSummary.vestedValue)})
                           </span>
-                          <span className="text-zinc-400 font-mono">
+                          <span className="text-zinc-500 dark:text-zinc-400 font-mono">
                             {grantSummary.unvestedShares.toLocaleString()} unvested
                           </span>
                           <button onClick={(e) => { e.stopPropagation(); removeGrant(grant.id); }}
-                            className="text-zinc-600 hover:text-red-400 text-xs ml-2">✕</button>
+                            className="text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 text-xs ml-2">✕</button>
                         </div>
                       </div>
                       {isExpanded && (
                         <div className="px-5 pb-4">
                           <table className="w-full text-xs">
                             <thead>
-                              <tr className="text-zinc-500">
+                              <tr className="text-zinc-400 dark:text-zinc-500">
                                 <th className="text-left py-1">Vest Date</th>
                                 <th className="text-right py-1">%</th>
                                 <th className="text-right py-1">Shares</th>
@@ -404,15 +399,15 @@ export default function RSUPage() {
                             </thead>
                             <tbody>
                               {events.map((ev: VestingEvent, i: number) => (
-                                <tr key={i} className={ev.vested ? "text-zinc-300" : "text-zinc-500"}>
+                                <tr key={i} className={ev.vested ? "text-zinc-600 dark:text-zinc-300" : "text-zinc-400 dark:text-zinc-500"}>
                                   <td className="py-1">{ev.vestDate}</td>
                                   <td className="text-right py-1">{ev.percentage}%</td>
                                   <td className="text-right py-1 font-mono">{ev.shares.toLocaleString()}</td>
                                   <td className="text-right py-1 font-mono">${fmt2(ev.shares * price)}</td>
                                   <td className="text-right py-1">
                                     {ev.vested
-                                      ? <span className="text-emerald-500">Vested</span>
-                                      : <span className="text-zinc-600">Pending</span>}
+                                      ? <span className="text-emerald-600 dark:text-emerald-500">Vested</span>
+                                      : <span className="text-zinc-400 dark:text-zinc-600">Pending</span>}
                                   </td>
                                 </tr>
                               ))}

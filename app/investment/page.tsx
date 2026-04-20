@@ -19,14 +19,14 @@ export default function InvestmentPage() {
   return (
     <div className="p-8 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Investment</h1>
-      <p className="text-zinc-400 text-sm mb-6">Sub-features within the investment section.</p>
+      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">Sub-features within the investment section.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {features.map((f) => (
           <Link key={f.href} href={f.href}
-            className="block bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:bg-zinc-800 transition-colors">
+            className="block bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
             <div className="text-2xl mb-2">{f.icon}</div>
-            <h2 className="text-white font-semibold text-base mb-1">{f.title}</h2>
-            <p className="text-zinc-400 text-sm leading-relaxed">{f.desc}</p>
+            <h2 className="text-zinc-900 dark:text-white font-semibold text-base mb-1">{f.title}</h2>
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">{f.desc}</p>
           </Link>
         ))}
       </div>

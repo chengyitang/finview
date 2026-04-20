@@ -10,6 +10,8 @@ const CATEGORIES = ["Salary", "Bonus", "Freelance", "Other"] as const;
 const CURRENT_YEAR = new Date().getFullYear();
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+const INPUT = "w-full bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100";
+
 export default function IncomePage() {
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
   const [filterYear, setFilterYear] = useState(CURRENT_YEAR);
@@ -61,7 +63,7 @@ export default function IncomePage() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Income</h1>
-      <p className="text-zinc-400 text-sm mb-6">All amounts in USD. Stored in your browser.</p>
+      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">All amounts in USD. Stored in your browser.</p>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         <KPICard label={`Total ${filterYear}`} value={fmt(totalYear)} />
@@ -69,87 +71,65 @@ export default function IncomePage() {
         <KPICard label="Bonus" value={fmt(byBonus)} />
       </div>
 
-      {/* Add entry */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-6">
         <h2 className="font-semibold mb-3">Add Entry</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Year</label>
-            <input
-              type="number"
-              value={form.year}
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
+            <input type="number" value={form.year}
               onChange={(e) => setForm((f) => ({ ...f, year: +e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
-            />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Month</label>
-            <select
-              value={form.month}
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Month</label>
+            <select value={form.month}
               onChange={(e) => setForm((f) => ({ ...f, month: +e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
-            >
+              className={INPUT}>
               {MONTHS.map((m, i) => (
                 <option key={m} value={i + 1}>{m}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Category</label>
-            <select
-              value={form.category}
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
+            <select value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as IncomeEntry["category"] }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
-            >
+              className={INPUT}>
               {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div className="col-span-2">
-            <label className="text-xs text-zinc-400 mb-1 block">Description</label>
-            <input
-              type="text"
-              placeholder="e.g. Monthly salary"
-              value={form.description}
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Description</label>
+            <input type="text" placeholder="e.g. Monthly salary" value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
-            />
+              className={INPUT} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">Amount (USD)</label>
-            <input
-              type="number"
-              placeholder="5000"
-              value={form.amountUSD}
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Amount (USD)</label>
+            <input type="number" placeholder="5000" value={form.amountUSD}
               onChange={(e) => setForm((f) => ({ ...f, amountUSD: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
-            />
+              className={INPUT} />
           </div>
         </div>
-        <button
-          onClick={addEntry}
-          className="mt-3 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
-        >
+        <button onClick={addEntry}
+          className="mt-3 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
           Add
         </button>
       </div>
 
-      {/* Filter */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-sm text-zinc-400">Filter year:</span>
-        <select
-          value={filterYear}
+        <span className="text-sm text-zinc-500 dark:text-zinc-400">Filter year:</span>
+        <select value={filterYear}
           onChange={(e) => setFilterYear(+e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm"
-        >
+          className="bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-900 dark:text-zinc-100">
           {years.map((y) => <option key={y}>{y}</option>)}
         </select>
       </div>
 
-      {/* Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-400">
+            <tr className="border-b border-gray-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">
               <th className="text-left px-4 py-3">Date</th>
               <th className="text-left px-4 py-3">Category</th>
               <th className="text-left px-4 py-3">Description</th>
@@ -159,18 +139,18 @@ export default function IncomePage() {
           </thead>
           <tbody>
             {yearEntries.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-500">No entries for {filterYear}.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">No entries for {filterYear}.</td></tr>
             ) : (
               yearEntries.map((e) => (
-                <tr key={e.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                  <td className="px-4 py-3 text-zinc-300">{MONTHS[e.month - 1]} {e.year}</td>
+                <tr key={e.id} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
+                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">{MONTHS[e.month - 1]} {e.year}</td>
                   <td className="px-4 py-3">
-                    <span className="bg-zinc-700 text-zinc-200 px-2 py-0.5 rounded text-xs">{e.category}</span>
+                    <span className="bg-gray-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 px-2 py-0.5 rounded text-xs">{e.category}</span>
                   </td>
-                  <td className="px-4 py-3 text-zinc-300">{e.description}</td>
-                  <td className="px-4 py-3 text-right font-mono text-emerald-400">{fmt(e.amountUSD)}</td>
+                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">{e.description}</td>
+                  <td className="px-4 py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">{fmt(e.amountUSD)}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => remove(e.id)} className="text-zinc-600 hover:text-red-400 text-xs">✕</button>
+                    <button onClick={() => remove(e.id)} className="text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
                   </td>
                 </tr>
               ))
