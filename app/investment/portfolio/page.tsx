@@ -11,7 +11,14 @@ import {
 } from "recharts";
 
 const TX_TYPES = ["Buy", "Sell", "Dividend", "Split"] as const;
-const COLORS = ["#6366f1", "#22d3ee", "#f59e0b", "#10b981", "#f43f5e", "#8b5cf6", "#ec4899", "#14b8a6"];
+const COLORS = ["#3b82f6", "#22d3ee", "#f59e0b", "#10b981", "#f43f5e", "#8b5cf6", "#ec4899", "#14b8a6"];
+
+const TICKER_COLORS: Record<string, string> = {
+  AAPL: "#555555", MSFT: "#00a4ef", GOOGL: "#4285f4", GOOG: "#4285f4",
+  META: "#0866ff", AMZN: "#ff9900", TSLA: "#e31937", NVDA: "#76b900",
+  NFLX: "#e50914", AMD: "#ed1c24", INTC: "#0071c5", TSM: "#00a3e0",
+  BABA: "#ff6a00", "2330.TW": "#00a3e0", "2454.TW": "#e60026",
+};
 
 const EMPTY_FORM = {
   date: new Date().toISOString().slice(0, 10),
@@ -136,6 +143,7 @@ export default function PortfolioPage() {
       });
 
   const pieData = active.filter((p) => p.marketValue > 0).map((p) => ({ name: p.symbol, value: p.marketValue }));
+  const pieTotalValue = pieData.reduce((s, p) => s + p.value, 0);
   const trendData = Object.entries(trend)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([year, gain]) => ({ year, gain: parseFloat(gain.toFixed(2)) }));
@@ -198,9 +206,16 @@ export default function PortfolioPage() {
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name}>
-                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    {pieData.map((entry, i) => (
+                      <Cell key={i} fill={TICKER_COLORS[entry.name] ?? COLORS[i % COLORS.length]} />
+                    ))}
                   </Pie>
-                  <Tooltip formatter={(v) => `${cSym}${fmt2(Number(v))}`} />
+                  <Tooltip
+                    formatter={(value, name) => {
+                      const pct = pieTotalValue > 0 ? ((Number(value) / pieTotalValue) * 100).toFixed(1) : "0.0";
+                      return [`${pct}%`, name];
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -350,16 +365,25 @@ export default function PortfolioPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && filteredActive.length > 1 && (
-                <tr className="border-t-2 border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/50 font-semibold">
-                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">TOTAL</td>
-                  <td colSpan={3} />
-                  <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(filteredActive.reduce((s, p) => s + p.marketValue, 0))}</td>
-                  <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(filteredActive.reduce((s, p) => s + p.capitalGain, 0))}</td>
-                  <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(filteredActive.reduce((s, p) => s + p.totalReturn, 0))}</td>
-                  <td />
-                </tr>
-              )}
+              {!loading && filteredActive.length > 1 && (() => {
+                const totMktVal = filteredActive.reduce((s, p) => s + p.marketValue, 0);
+                const totCapGain = filteredActive.reduce((s, p) => s + p.capitalGain, 0);
+                const totReturn = filteredActive.reduce((s, p) => s + p.totalReturn, 0);
+                const totCost = filteredActive.reduce((s, p) => s + p.avgCost * p.shares, 0);
+                const blendedPct = totCost > 0 ? (totReturn / totCost) * 100 : 0;
+                return (
+                  <tr className="border-t-2 border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/50 font-semibold">
+                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">TOTAL</td>
+                    <td colSpan={3} />
+                    <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(totMktVal)}</td>
+                    <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(totCapGain)}</td>
+                    <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(totReturn)}</td>
+                    <td className={`px-4 py-3 text-right font-mono ${blendedPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                      {fmtPct(blendedPct)}
+                    </td>
+                  </tr>
+                );
+              })()}
             </tbody>
           </table>
         </div>
