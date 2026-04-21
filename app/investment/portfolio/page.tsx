@@ -111,10 +111,11 @@ export default function PortfolioPage() {
   }
 
   function exportCSV() {
-    const header = "date,ticker,stockName,type,shares,price,fee";
-    const rows = transactions.map((tx) =>
-      [tx.date, tx.ticker, tx.stockName, tx.type, tx.shares, tx.price, tx.fee].join(",")
-    );
+    const header = "Date,Ticker,Stock Name,Type,Shares,Price,Fee,Cash Flow";
+    const rows = transactions.map((tx) => {
+      const fields = [tx.date, tx.ticker, tx.stockName, tx.type, tx.shares, tx.price, tx.fee, tx.cashFlow ?? ""];
+      return fields.map((f) => { const s = String(f); return s.includes(",") ? `"${s}"` : s; }).join(",");
+    });
     const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -124,27 +125,64 @@ export default function PortfolioPage() {
     URL.revokeObjectURL(url);
   }
 
+  function parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) {
+        result.push(current); current = "";
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current);
+    return result;
+  }
+
   function importCSV(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       const lines = (ev.target?.result as string).trim().split(/\r?\n/);
+      if (lines.length < 2) return;
+      const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/[\s_]/g, ""));
+      const col = (name: string) => headers.indexOf(name);
+      const iDate = col("date");
+      const iTicker = col("ticker");
+      const iStockName = col("stockname");
+      const iType = col("type");
+      const iShares = col("shares");
+      const iPrice = col("price");
+      const iFee = col("fee");
+      const iCashFlow = col("cashflow");
+      if (iDate === -1 || iTicker === -1 || iType === -1) return;
+      const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
       const newTxs: Transaction[] = [];
       for (let i = 1; i < lines.length; i++) {
-        const parts = lines[i].split(",");
-        if (parts.length < 6) continue;
-        const [date, ticker, stockName, type, shares, price, fee = "0"] = parts.map((p) => p.trim());
-        if (!date || !ticker || !TX_TYPES.includes(type as Transaction["type"])) continue;
+        const parts = parseCSVLine(lines[i]).map((p) => p.trim());
+        const ticker = parts[iTicker] ?? "";
+        if (!ticker) continue;
+        const type = capitalize(parts[iType] ?? "") as Transaction["type"];
+        if (!TX_TYPES.includes(type)) continue;
+        const date = parts[iDate] ?? "";
+        if (!date) continue;
+        const cashFlow = iCashFlow >= 0 ? parseFloat(parts[iCashFlow]) || 0 : 0;
         newTxs.push({
           id: crypto.randomUUID(),
           date,
           ticker: ticker.toUpperCase(),
-          stockName: stockName ?? "",
-          type: type as Transaction["type"],
-          shares: parseFloat(shares) || 0,
-          price: parseFloat(price) || 0,
-          fee: parseFloat(fee) || 0,
+          stockName: iStockName >= 0 ? (parts[iStockName] ?? "") : "",
+          type,
+          shares: iShares >= 0 ? parseFloat(parts[iShares]) || 0 : 0,
+          price: iPrice >= 0 ? parseFloat(parts[iPrice]) || 0 : 0,
+          fee: iFee >= 0 ? parseFloat(parts[iFee]) || 0 : 0,
+          ...(cashFlow !== 0 ? { cashFlow } : {}),
         });
       }
       if (newTxs.length === 0) return;
@@ -157,22 +195,11 @@ export default function PortfolioPage() {
   }
 
   const { active, closed } = aggregatePortfolio(transactions, prices, fxRate, displayCurrency);
-  const trend = calcRealizedTrend(transactions, fxRate, displayCurrency);
 
-  const cSym = displayCurrency === "TWD" ? "NT$" : "$";
-  const totalAssets = active.reduce((s, p) => s + p.marketValue, 0);
-  const totalReturn = active.reduce((s, p) => s + p.totalReturn, 0) + closed.reduce((s, p) => s + p.totalReturn, 0);
-  const totalDivs = active.reduce((s, p) => s + p.totalDividends, 0) + closed.reduce((s, p) => s + p.totalDividends, 0);
-
-  function filterByMarket<T extends ActivePosition | ClosedPosition>(list: T[]): T[] {
-    if (marketFilter === "all") return list;
-    return list.filter((p) =>
-      marketFilter === "TW" ? p.currency === "TWD" : p.currency === "USD"
-    );
-  }
-
-  const filteredActive = filterByMarket(active);
-  const filteredClosed = filterByMarket(closed);
+  const filteredActive = marketFilter === "all" ? active
+    : active.filter((p) => marketFilter === "TW" ? p.currency === "TWD" : p.currency === "USD");
+  const filteredClosed = marketFilter === "all" ? closed
+    : closed.filter((p) => marketFilter === "TW" ? p.currency === "TWD" : p.currency === "USD");
   const filteredTransactions = marketFilter === "all"
     ? transactions
     : transactions.filter((tx) => {
@@ -181,7 +208,14 @@ export default function PortfolioPage() {
         return marketFilter === "TW" ? isTW : !isTW;
       });
 
-  const pieData = active.filter((p) => p.marketValue > 0).map((p) => ({ name: p.symbol, value: p.marketValue }));
+  const trend = calcRealizedTrend(filteredTransactions, fxRate, displayCurrency);
+
+  const cSym = displayCurrency === "TWD" ? "NT$" : "$";
+  const totalAssets = active.reduce((s, p) => s + p.marketValue, 0);
+  const totalReturn = active.reduce((s, p) => s + p.totalReturn, 0) + closed.reduce((s, p) => s + p.totalReturn, 0);
+  const totalDivs = active.reduce((s, p) => s + p.totalDividends, 0) + closed.reduce((s, p) => s + p.totalDividends, 0);
+
+  const pieData = filteredActive.filter((p) => p.marketValue > 0).map((p) => ({ name: p.symbol, value: p.marketValue }));
   const pieTotalValue = pieData.reduce((s, p) => s + p.value, 0);
   const trendData = Object.entries(trend)
     .sort(([a], [b]) => a.localeCompare(b))
