@@ -14,6 +14,7 @@ const INPUT = "w-full bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:b
 
 export default function IncomePage() {
   const [entries, setEntries] = useState<IncomeEntry[]>([]);
+  const [showForm, setShowForm] = useState(false);
   const [filterYear, setFilterYear] = useState(CURRENT_YEAR);
   const [form, setForm] = useState({
     year: CURRENT_YEAR,
@@ -71,50 +72,60 @@ export default function IncomePage() {
         <KPICard label="Bonus" value={fmt(byBonus)} />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-6">
-        <h2 className="font-semibold mb-3">Add Entry</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
-            <input type="number" value={form.year}
-              onChange={(e) => setForm((f) => ({ ...f, year: +e.target.value }))}
-              className={INPUT} />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Month</label>
-            <select value={form.month}
-              onChange={(e) => setForm((f) => ({ ...f, month: +e.target.value }))}
-              className={INPUT}>
-              {MONTHS.map((m, i) => (
-                <option key={m} value={i + 1}>{m}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
-            <select value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as IncomeEntry["category"] }))}
-              className={INPUT}>
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Description</label>
-            <input type="text" placeholder="e.g. Monthly salary" value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className={INPUT} />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Amount (USD)</label>
-            <input type="number" placeholder="5000" value={form.amountUSD}
-              onChange={(e) => setForm((f) => ({ ...f, amountUSD: e.target.value }))}
-              className={INPUT} />
-          </div>
-        </div>
-        <button onClick={addEntry}
-          className="mt-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
-          Add
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl mb-6 overflow-hidden">
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+        >
+          <span className="font-semibold text-sm">Add Entry</span>
+          <span className="text-zinc-400 text-xs">{showForm ? "▲" : "▼"}</span>
         </button>
+        {showForm && (
+          <div className="px-5 pb-5 border-t border-gray-100 dark:border-zinc-800 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
+                <input type="number" value={form.year}
+                  onChange={(e) => setForm((f) => ({ ...f, year: +e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Month</label>
+                <select value={form.month}
+                  onChange={(e) => setForm((f) => ({ ...f, month: +e.target.value }))}
+                  className={INPUT}>
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
+                <select value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as IncomeEntry["category"] }))}
+                  className={INPUT}>
+                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Description</label>
+                <input type="text" placeholder="e.g. Monthly salary" value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Amount (USD)</label>
+                <input type="number" placeholder="5000" value={form.amountUSD}
+                  onChange={(e) => setForm((f) => ({ ...f, amountUSD: e.target.value }))}
+                  className={INPUT} />
+              </div>
+            </div>
+            <button onClick={addEntry}
+              className="mt-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              Add
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 mb-3">

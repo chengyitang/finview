@@ -11,6 +11,7 @@ const INPUT = "w-full bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:b
 
 export default function TaxPage() {
   const [entries, setEntries] = useState<TaxEntry[]>([]);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     year: CURRENT_YEAR,
     federalOwed: "",
@@ -79,50 +80,60 @@ export default function TaxPage() {
         />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-6">
-        <h2 className="font-semibold mb-3">Add / Update Year</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
-            <input type="number" value={form.year}
-              onChange={(e) => setForm((f) => ({ ...f, year: +e.target.value }))}
-              className={INPUT} />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Federal Owed</label>
-            <input type="number" placeholder="0" value={form.federalOwed}
-              onChange={(e) => setForm((f) => ({ ...f, federalOwed: e.target.value }))}
-              className={INPUT} />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">State Owed</label>
-            <input type="number" placeholder="0" value={form.stateOwed}
-              onChange={(e) => setForm((f) => ({ ...f, stateOwed: e.target.value }))}
-              className={INPUT} />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Federal Paid (Withheld)</label>
-            <input type="number" placeholder="0" value={form.federalPaid}
-              onChange={(e) => setForm((f) => ({ ...f, federalPaid: e.target.value }))}
-              className={INPUT} />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">State Paid (Withheld)</label>
-            <input type="number" placeholder="0" value={form.statePaid}
-              onChange={(e) => setForm((f) => ({ ...f, statePaid: e.target.value }))}
-              className={INPUT} />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Notes</label>
-            <input type="text" placeholder="Optional" value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              className={INPUT} />
-          </div>
-        </div>
-        <button onClick={upsert}
-          className="mt-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
-          Save
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl mb-6 overflow-hidden">
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+        >
+          <span className="font-semibold text-sm">Add / Update Year</span>
+          <span className="text-zinc-400 text-xs">{showForm ? "▲" : "▼"}</span>
         </button>
+        {showForm && (
+          <div className="px-5 pb-5 border-t border-gray-100 dark:border-zinc-800 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
+                <input type="number" value={form.year}
+                  onChange={(e) => setForm((f) => ({ ...f, year: +e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Federal Owed</label>
+                <input type="number" placeholder="0" value={form.federalOwed}
+                  onChange={(e) => setForm((f) => ({ ...f, federalOwed: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">State Owed</label>
+                <input type="number" placeholder="0" value={form.stateOwed}
+                  onChange={(e) => setForm((f) => ({ ...f, stateOwed: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Federal Paid (Withheld)</label>
+                <input type="number" placeholder="0" value={form.federalPaid}
+                  onChange={(e) => setForm((f) => ({ ...f, federalPaid: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">State Paid (Withheld)</label>
+                <input type="number" placeholder="0" value={form.statePaid}
+                  onChange={(e) => setForm((f) => ({ ...f, statePaid: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Notes</label>
+                <input type="text" placeholder="Optional" value={form.notes}
+                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                  className={INPUT} />
+              </div>
+            </div>
+            <button onClick={upsert}
+              className="mt-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              Save
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">

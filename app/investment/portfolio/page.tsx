@@ -41,6 +41,7 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "closed" | "transactions">("active");
   const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
   const [assetsHistory, setAssetsHistory] = useState<Record<string, Record<number, number>>>({});
@@ -344,40 +345,59 @@ export default function PortfolioPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-        <div>
-          <h1 className="text-2xl font-bold">Stock Portfolio</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm">All data saved in your browser. Live prices via Yahoo Finance.</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">Market:</span>
-          {(["all", "US", "TW"] as const).map((f) => (
-            <button key={f} onClick={() => setMarketFilter(f)} className={btnFilter(f)}>
-              {f === "all" ? "All" : f}
-            </button>
-          ))}
-          <span className="text-zinc-300 dark:text-zinc-600 mx-1">|</span>
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">Currency:</span>
-          {(["USD", "TWD"] as const).map((c) => (
-            <button key={c} onClick={() => setDisplayCurrency(c)}
-              className={`px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${
-                displayCurrency === c
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "border-gray-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
-              }`}>
-              {c}
-            </button>
-          ))}
-          <button onClick={() => fetchPricesAndFx(transactions)}
-            className="ml-1 px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold">Stock Portfolio</h1>
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm">All data saved in your browser. Live prices via Yahoo Finance.</p>
       </div>
 
-      {displayCurrency === "TWD" && (
-        <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">USD/TWD rate: {fxRate.toFixed(2)}</p>
-      )}
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl mb-4 overflow-hidden">
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+        >
+          <span className="font-semibold text-sm">Filters</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-zinc-400">
+              {marketFilter === "all" ? "All markets" : marketFilter} · {displayCurrency}
+            </span>
+            <span className="text-zinc-400 text-xs">{showFilters ? "▲" : "▼"}</span>
+          </div>
+        </button>
+        {showFilters && (
+          <div className="px-5 pb-4 border-t border-gray-100 dark:border-zinc-800 pt-4">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">Market:</span>
+                {(["all", "US", "TW"] as const).map((f) => (
+                  <button key={f} onClick={() => setMarketFilter(f)} className={btnFilter(f)}>
+                    {f === "all" ? "All" : f}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">Currency:</span>
+                {(["USD", "TWD"] as const).map((c) => (
+                  <button key={c} onClick={() => setDisplayCurrency(c)}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${
+                      displayCurrency === c
+                        ? "bg-blue-600 border-blue-500 text-white"
+                        : "border-gray-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    }`}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => fetchPricesAndFx(transactions)}
+                className="px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                {loading ? "Refreshing..." : "Refresh Prices"}
+              </button>
+            </div>
+            {displayCurrency === "TWD" && (
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-2">USD/TWD rate: {fxRate.toFixed(2)}</p>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
         <KPICard label="Total Assets" value={`${cSym}${fmt2(totalAssets)}`} />
@@ -426,100 +446,99 @@ export default function PortfolioPage() {
         </div>
       )}
 
+      {/* Add Transaction Form */}
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl mb-4 overflow-hidden">
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+        >
+          <span className="font-semibold text-sm">Add Transaction</span>
+          <span className="text-zinc-400 text-xs">{showForm ? "▲" : "▼"}</span>
+        </button>
+        {showForm && (
+          <div className="px-5 pb-5 border-t border-gray-100 dark:border-zinc-800 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Date</label>
+                <input type="date" value={form.date}
+                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Ticker</label>
+                <input type="text" placeholder="AAPL / 2330" value={form.ticker}
+                  onChange={(e) => setForm((f) => ({ ...f, ticker: e.target.value }))}
+                  className={`${INPUT} uppercase`} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Stock Name</label>
+                <input type="text" placeholder="Apple Inc." value={form.stockName}
+                  onChange={(e) => setForm((f) => ({ ...f, stockName: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Type</label>
+                <select value={form.type}
+                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Transaction["type"] }))}
+                  className={INPUT}>
+                  {TX_TYPES.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">
+                  {form.type === "Dividend" ? "Shares (0 ok)" : "Shares"}
+                </label>
+                <input type="number" placeholder="100" value={form.shares}
+                  onChange={(e) => setForm((f) => ({ ...f, shares: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">
+                  {form.type === "Dividend" ? "Dividend Amount" : "Price per Share"}
+                </label>
+                <input type="number" placeholder="0.00" value={form.price}
+                  onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                  className={INPUT} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Fee</label>
+                <input type="number" placeholder="0" value={form.fee}
+                  onChange={(e) => setForm((f) => ({ ...f, fee: e.target.value }))}
+                  className={INPUT} />
+              </div>
+            </div>
+            <button onClick={addTransaction}
+              className="mt-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              Add
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-gray-200 dark:border-zinc-800">
         {(["active", "closed", "transactions"] as const).map((tab) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium transition-colors capitalize ${
+            className={`px-3 py-2 text-sm font-medium transition-colors capitalize ${
               activeTab === tab
                 ? "text-zinc-900 dark:text-white border-b-2 border-blue-500"
                 : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             }`}>
-            {tab === "active" ? "Active Positions" : tab === "closed" ? "Closed Positions" : "Transactions"}
+            {tab === "active" ? "Active" : tab === "closed" ? "Closed" : "Transactions"}
           </button>
         ))}
         <div className="flex-1" />
         <div className="flex items-center gap-2 mb-1">
           <button onClick={exportCSV}
             className="px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
-            Export CSV
+            Export
           </button>
           <label className="px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
-            Import CSV
+            Import
             <input type="file" accept=".csv" className="hidden" onChange={importCSV} />
           </label>
-          <button onClick={() => setShowForm(!showForm)}
-            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium">
-            + Add Transaction
-          </button>
         </div>
       </div>
-
-      {/* Add Transaction Form */}
-      {showForm && (
-        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Date</label>
-              <input type="date" value={form.date}
-                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                className={INPUT} />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Ticker</label>
-              <input type="text" placeholder="AAPL / 2330" value={form.ticker}
-                onChange={(e) => setForm((f) => ({ ...f, ticker: e.target.value }))}
-                className={`${INPUT} uppercase`} />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Stock Name</label>
-              <input type="text" placeholder="Apple Inc." value={form.stockName}
-                onChange={(e) => setForm((f) => ({ ...f, stockName: e.target.value }))}
-                className={INPUT} />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Type</label>
-              <select value={form.type}
-                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Transaction["type"] }))}
-                className={INPUT}>
-                {TX_TYPES.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">
-                {form.type === "Dividend" ? "Shares (0 ok)" : "Shares"}
-              </label>
-              <input type="number" placeholder="100" value={form.shares}
-                onChange={(e) => setForm((f) => ({ ...f, shares: e.target.value }))}
-                className={INPUT} />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">
-                {form.type === "Dividend" ? "Dividend Amount" : "Price per Share"}
-              </label>
-              <input type="number" placeholder="0.00" value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                className={INPUT} />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Fee</label>
-              <input type="number" placeholder="0" value={form.fee}
-                onChange={(e) => setForm((f) => ({ ...f, fee: e.target.value }))}
-                className={INPUT} />
-            </div>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <button onClick={addTransaction}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
-              Add
-            </button>
-            <button onClick={() => setShowForm(false)}
-              className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-4 py-2 rounded-lg text-sm">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Active Positions */}
       {activeTab === "active" && (
