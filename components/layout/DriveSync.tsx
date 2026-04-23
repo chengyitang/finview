@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { collectAll, restoreAll, registerSync } from "@/lib/storage";
 
 const DEBOUNCE_MS = 2000;
+const PUSHED_AT_KEY = "fv_pushed_at";
 
 export default function DriveSync() {
   const { data: session, status } = useSession();
@@ -13,13 +14,15 @@ export default function DriveSync() {
 
   const push = useCallback(async () => {
     if (!session?.accessToken) return;
+    const pushedAt = Date.now().toString();
     const data = collectAll();
     try {
       await fetch("/api/drive/data", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, _pushedAt: pushedAt }),
       });
+      localStorage.setItem(PUSHED_AT_KEY, pushedAt);
     } catch {
       // silent — localStorage remains source of truth
     }
@@ -30,7 +33,6 @@ export default function DriveSync() {
     timerRef.current = setTimeout(push, DEBOUNCE_MS);
   }, [push]);
 
-  // Register the debounced push as the global sync hook
   useEffect(() => {
     registerSync(schedulePush);
   }, [schedulePush]);
@@ -45,17 +47,20 @@ export default function DriveSync() {
         if (!res.ok) return;
         const remote = await res.json();
         if (remote && Object.keys(remote).length > 0) {
+          // Skip restore if this device was the last to push this data
+          const localPushedAt = localStorage.getItem(PUSHED_AT_KEY);
+          if (remote._pushedAt && remote._pushedAt === localPushedAt) return;
           restoreAll(remote);
           window.location.reload();
         } else {
-          // Drive is empty — push whatever is in localStorage up immediately
+          // Drive empty — push local data up immediately
           await push();
         }
       } catch {
         // ignore — keep localStorage data
       }
     })();
-  }, [status]);
+  }, [status, push]);
 
   return null;
 }
