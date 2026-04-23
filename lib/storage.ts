@@ -35,3 +35,7 @@ export const saveTax = (v: TaxEntry[]): void => save("fv_tax", v);
 // Retirement
 export const loadRetirement = (): RetirementAccount[] => load("fv_retirement", []);
 export const saveRetirement = (v: RetirementAccount[]): void => save("fv_retirement", v);
+
+// Assets history — end-of-year snapshots stored in USD
+export const loadAssetsHistory = (): Record<number, number> => load("fv_assets_history", {});
+export const saveAssetsHistory = (v: Record<number, number>): void => save("fv_assets_history", v);

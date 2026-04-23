@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Transaction, ActivePosition, ClosedPosition } from "@/types";
-import { loadTransactions, saveTransactions } from "@/lib/storage";
-import { normalizeTicker, detectCurrency, aggregatePortfolio, calcRealizedTrend } from "@/lib/portfolio";
+import { loadTransactions, saveTransactions, loadAssetsHistory, saveAssetsHistory } from "@/lib/storage";
+import { normalizeTicker, detectCurrency, aggregatePortfolio } from "@/lib/portfolio";
 import KPICard from "@/components/ui/KPICard";
 import {
-  PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis,
+  PieChart, Pie, Cell, Tooltip, LineChart, Line, CartesianGrid, XAxis, YAxis,
   ResponsiveContainer,
 } from "recharts";
+
+const CURRENT_YEAR = new Date().getFullYear();
 
 const TX_TYPES = ["Buy", "Sell", "Dividend", "Split"] as const;
 const COLORS = ["#3b82f6", "#22d3ee", "#f59e0b", "#10b981", "#f43f5e", "#8b5cf6", "#ec4899", "#14b8a6"];
@@ -41,9 +43,11 @@ export default function PortfolioPage() {
   const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "closed" | "transactions">("active");
   const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
+  const [assetsHistory, setAssetsHistory] = useState<Record<number, number>>({});
 
   useEffect(() => {
     setTransactions(loadTransactions());
+    setAssetsHistory(loadAssetsHistory());
   }, []);
 
   const fetchPricesAndFx = useCallback(async (txns: Transaction[]) => {
@@ -84,6 +88,20 @@ export default function PortfolioPage() {
   useEffect(() => {
     fetchPricesAndFx(transactions);
   }, [transactions, fetchPricesAndFx]);
+
+  // Ref always holds latest all-market USD total so the save effect below
+  // reads current values without needing them as deps.
+  const snapshotUSDRef = useRef(0);
+
+  useEffect(() => {
+    if (loading || snapshotUSDRef.current === 0) return;
+    const usd = snapshotUSDRef.current;
+    setAssetsHistory((prev) => {
+      const updated = { ...prev, [CURRENT_YEAR]: parseFloat(usd.toFixed(2)) };
+      saveAssetsHistory(updated);
+      return updated;
+    });
+  }, [loading]);
 
   function addTransaction() {
     if (!form.ticker || !form.date) return;
@@ -208,18 +226,25 @@ export default function PortfolioPage() {
         return marketFilter === "TW" ? isTW : !isTW;
       });
 
-  const trend = calcRealizedTrend(filteredTransactions, fxRate, displayCurrency);
-
   const cSym = "$";
   const totalAssets = filteredActive.reduce((s, p) => s + p.marketValue, 0);
   const totalReturn = filteredActive.reduce((s, p) => s + p.totalReturn, 0) + filteredClosed.reduce((s, p) => s + p.totalReturn, 0);
   const totalDivs = filteredActive.reduce((s, p) => s + p.totalDividends, 0) + filteredClosed.reduce((s, p) => s + p.totalDividends, 0);
 
+  // Keep ref current for snapshot effect (uses all positions, converted to USD)
+  const totalAllMarkets = active.reduce((s, p) => s + p.marketValue, 0);
+  snapshotUSDRef.current = displayCurrency === "TWD" ? totalAllMarkets / fxRate : totalAllMarkets;
+
   const pieData = filteredActive.filter((p) => p.marketValue > 0).map((p) => ({ name: p.symbol, value: p.marketValue }));
   const pieTotalValue = pieData.reduce((s, p) => s + p.value, 0);
-  const trendData = Object.entries(trend)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([year, gain]) => ({ year, gain: parseFloat(gain.toFixed(2)) }));
+
+  const assetsChartData = Object.entries(assetsHistory)
+    .filter(([y]) => Number(y) < CURRENT_YEAR)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([year, usd]) => ({
+      year: Number(year),
+      value: parseFloat((displayCurrency === "TWD" ? usd * fxRate : usd).toFixed(2)),
+    }));
 
   const btnFilter = (f: MarketFilter) =>
     `px-3 py-1 rounded-lg text-sm font-medium border transition-colors ${
@@ -271,7 +296,7 @@ export default function PortfolioPage() {
         <KPICard label="Total Dividends" value={`${cSym}${fmt2(totalDivs)}`} />
       </div>
 
-      {(pieData.length > 0 || trendData.length > 0) && (
+      {(pieData.length > 0 || assetsChartData.length > 0) && (
         <div className="grid grid-cols-2 gap-4 mb-6">
           {pieData.length > 0 && (
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
@@ -293,16 +318,19 @@ export default function PortfolioPage() {
               </ResponsiveContainer>
             </div>
           )}
-          {trendData.length > 0 && (
+          {assetsChartData.length > 0 && (
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
-              <p className="text-sm font-medium mb-3 text-zinc-600 dark:text-zinc-300">Realized Gain by Year (Closed)</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={trendData}>
+              <p className="text-sm font-medium mb-3 text-zinc-600 dark:text-zinc-300">Total Assets Growth</p>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={assetsChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" className="dark:stroke-zinc-700" />
                   <XAxis dataKey="year" tick={{ fill: "#71717a", fontSize: 12 }} />
-                  <YAxis tick={{ fill: "#71717a", fontSize: 12 }} />
-                  <Tooltip formatter={(v) => `${cSym}${fmt2(Number(v))}`} />
-                  <Bar dataKey="gain" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <YAxis tick={{ fill: "#71717a", fontSize: 12 }}
+                    tickFormatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${(v / 1_000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v) => [`${cSym}${fmt2(Number(v))}`, "Total Assets"]} />
+                  <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2}
+                    dot={{ fill: "#3b82f6", r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           )}
