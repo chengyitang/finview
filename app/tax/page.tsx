@@ -63,11 +63,11 @@ export default function TaxPage() {
   const balance = totalOwed - totalPaid;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Tax</h1>
       <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">Track estimated taxes owed vs. paid by year.</p>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <KPICard label={`${CURRENT_YEAR} Total Owed`} value={fmt(totalOwed)} />
         <KPICard label={`${CURRENT_YEAR} Total Paid`} value={fmt(totalPaid)} />
         <KPICard
@@ -81,7 +81,7 @@ export default function TaxPage() {
 
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-6">
         <h2 className="font-semibold mb-3">Add / Update Year</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <div>
             <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
             <input type="number" value={form.year}

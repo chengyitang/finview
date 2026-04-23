@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const { data: session, status } = useSession();
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
       {/* Sign-in banner — shown only when logged out */}
       {status !== "loading" && !session && (
         <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-5 py-4">

@@ -60,13 +60,13 @@ export default function RetirementPage() {
   const totalContrib = entries.reduce((s, e) => s + e.contributions, 0);
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">{meta.label}</h1>
       <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">
         {CURRENT_YEAR} contribution limit: {fmt(meta.limit2024)}
       </p>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <KPICard label="Current Balance" value={latest ? fmt(latest.balance) : "—"} />
         <KPICard label={`${CURRENT_YEAR} Contributions`} value={latest?.year === CURRENT_YEAR ? fmt(latest.contributions) : "—"} />
         <KPICard label="All-Time Contributions" value={fmt(totalContrib)} />
@@ -74,7 +74,7 @@ export default function RetirementPage() {
 
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-6">
         <h2 className="font-semibold mb-3">Add / Update Year</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <div>
             <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
             <input type="number" value={form.year}

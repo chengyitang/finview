@@ -34,7 +34,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <TopBar />
               <div className="flex flex-1 min-h-0 overflow-hidden">
                 <Sidebar />
-                <main className="flex-1 overflow-auto">{children}</main>
+                {/* On mobile sidebar is fixed overlay, so main takes full width */}
+                <main className="flex-1 overflow-auto w-0">{children}</main>
               </div>
             </LayoutProvider>
           </ThemeProvider>

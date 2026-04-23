@@ -343,8 +343,8 @@ export default function PortfolioPage() {
     }`;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-2">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
         <div>
           <h1 className="text-2xl font-bold">Stock Portfolio</h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm">All data saved in your browser. Live prices via Yahoo Finance.</p>
@@ -379,14 +379,14 @@ export default function PortfolioPage() {
         <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">USD/TWD rate: {fxRate.toFixed(2)}</p>
       )}
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
         <KPICard label="Total Assets" value={`${cSym}${fmt2(totalAssets)}`} />
         <KPICard label="Total P/L" value={`${cSym}${fmt2(totalReturn)}`} positive={totalReturn >= 0} negative={totalReturn < 0} />
         <KPICard label="Total Dividends" value={`${cSym}${fmt2(totalDivs)}`} />
       </div>
 
       {(pieData.length > 0 || assetsChartData.length > 0) && (
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {pieData.length > 0 && (
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
               <p className="text-sm font-medium mb-3 text-zinc-600 dark:text-zinc-300">Asset Allocation</p>
@@ -458,7 +458,7 @@ export default function PortfolioPage() {
       {/* Add Transaction Form */}
       {showForm && (
         <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Date</label>
               <input type="date" value={form.date}

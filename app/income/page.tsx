@@ -61,11 +61,11 @@ export default function IncomePage() {
   const years = Array.from(new Set([CURRENT_YEAR, ...entries.map((e) => e.year)])).sort((a, b) => b - a);
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Income</h1>
       <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">All amounts in USD. Stored in your browser.</p>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <KPICard label={`Total ${filterYear}`} value={fmt(totalYear)} />
         <KPICard label="Salary" value={fmt(bySalary)} />
         <KPICard label="Bonus" value={fmt(byBonus)} />
@@ -73,7 +73,7 @@ export default function IncomePage() {
 
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-6">
         <h2 className="font-semibold mb-3">Add Entry</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           <div>
             <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Year</label>
             <input type="number" value={form.year}

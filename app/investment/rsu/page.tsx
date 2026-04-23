@@ -188,7 +188,7 @@ export default function RSUPage() {
   const selectedCompany = allCompanies.find((c) => c.id === selectedCompanyId);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-2xl font-bold">RSU Tracker</h1>
@@ -196,7 +196,7 @@ export default function RSUPage() {
         </div>
       </div>
 
-      <div className={`grid gap-4 mb-6 ${totalGrantValue > 0 ? "grid-cols-4" : "grid-cols-3"}`}>
+      <div className={`grid gap-3 sm:gap-4 mb-6 ${totalGrantValue > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
         <KPICard label="Total Vested Value" value={`$${fmt2(totalVested)}`} />
         <KPICard label="Total Unvested Value" value={`$${fmt2(totalUnvested)}`} />
         <KPICard label="Total Portfolio Value" value={`$${fmt2(totalVested + totalUnvested)}`} />
@@ -211,7 +211,7 @@ export default function RSUPage() {
         )}
       </div>
 
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         <select value={selectedCompanyId}
           onChange={(e) => setSelectedCompanyId(e.target.value)}
           className="bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
@@ -235,7 +235,7 @@ export default function RSUPage() {
           {selectedCompany.priceMethod === "30day-trailing-avg" && (
             <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">Amazon uses 30-day trailing average price. Provide your onboard date to auto-calculate.</p>
           )}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Grant Date</label>
               <input type="date" value={grantForm.grantDate}
@@ -299,7 +299,7 @@ export default function RSUPage() {
       {showCompanyForm && (
         <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-5 mb-4">
           <h3 className="font-semibold mb-3">Add Custom Company</h3>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Company Name</label>
               <input type="text" placeholder="Acme Corp" value={companyForm.name}
