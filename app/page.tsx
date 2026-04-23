@@ -5,11 +5,11 @@ import { useSession, signIn } from "next-auth/react";
 
 const sections = [
   { title: "Income", href: "/income", desc: "Track salary, bonuses, and other income sources.", icon: "💵", color: "border-emerald-600 dark:border-emerald-700" },
-  { title: "Tax", href: "/tax", desc: "Estimate federal and state tax liability by year.", icon: "🧾", color: "border-yellow-600 dark:border-yellow-700" },
+  { title: "Tax", href: "/tax", desc: "Track federal and state taxes owed and withheld by year.", icon: "🧾", color: "border-yellow-600 dark:border-yellow-700" },
   { title: "401(k)", href: "/retirement/401k", desc: "Log contributions, employer match, and balance.", icon: "🏦", color: "border-blue-600 dark:border-blue-700" },
   { title: "HSA", href: "/retirement/hsa", desc: "Track health savings account contributions and balance.", icon: "🏥", color: "border-teal-600 dark:border-teal-700" },
-  { title: "IRA / Roth IRA", href: "/retirement/ira", desc: "Manage IRA and Roth IRA contributions.", icon: "📑", color: "border-purple-600 dark:border-purple-700" },
-  { title: "Stock Portfolio", href: "/investment/portfolio", desc: "Track US and Taiwan stocks with live prices. No file uploads — data saved in your browser.", icon: "📊", color: "border-blue-600 dark:border-blue-700" },
+  { title: "IRA / Roth IRA", href: "/retirement/ira", desc: "Log IRA and Roth IRA contributions and year-end balance.", icon: "📑", color: "border-purple-600 dark:border-purple-700" },
+  { title: "Stock Portfolio", href: "/investment/portfolio", desc: "Track US and Taiwan stocks with live prices. CSV import/export supported.", icon: "📊", color: "border-blue-600 dark:border-blue-700" },
   { title: "RSU", href: "/investment/rsu", desc: "Calculate vested and unvested RSU value across multiple grants and companies.", icon: "📈", color: "border-pink-600 dark:border-pink-700" },
 ];
 
@@ -24,7 +24,7 @@ export default function DashboardPage() {
           <div>
             <p className="font-semibold text-blue-900 dark:text-blue-200 text-sm">Sync your data across devices</p>
             <p className="text-blue-700 dark:text-blue-400 text-xs mt-0.5">
-              Sign in with Google to back up and restore your data via Google Drive. Stored privately in your own Google Drive — no one else can access it. No account setup required.
+              Sign in with Google to back up and restore your data via Google Drive — stored privately in your own account, no one else can access it. Uses your existing Google account, no new signup needed.
             </p>
           </div>
           <button

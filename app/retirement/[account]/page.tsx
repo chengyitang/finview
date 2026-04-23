@@ -6,10 +6,10 @@ import { RetirementAccount } from "@/types";
 import { loadRetirement, saveRetirement } from "@/lib/storage";
 import KPICard from "@/components/ui/KPICard";
 
-const ACCOUNT_META: Record<string, { label: string; type: RetirementAccount["type"]; limit2024: number }> = {
-  "401k": { label: "401(k)", type: "401k", limit2024: 23000 },
-  hsa: { label: "HSA", type: "HSA", limit2024: 4150 },
-  ira: { label: "IRA / Roth IRA", type: "IRA", limit2024: 7000 },
+const ACCOUNT_META: Record<string, { label: string; type: RetirementAccount["type"]; limit2025: number }> = {
+  "401k": { label: "401(k)", type: "401k", limit2025: 23500 },
+  hsa: { label: "HSA", type: "HSA", limit2025: 4300 },
+  ira: { label: "IRA / Roth IRA", type: "IRA", limit2025: 7000 },
 };
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -64,7 +64,7 @@ export default function RetirementPage() {
     <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">{meta.label}</h1>
       <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">
-        {CURRENT_YEAR} contribution limit: {fmt(meta.limit2024)}
+        2025 contribution limit: {fmt(meta.limit2025)}
       </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">

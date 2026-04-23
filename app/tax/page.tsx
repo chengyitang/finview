@@ -66,7 +66,7 @@ export default function TaxPage() {
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Tax</h1>
-      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">Track estimated taxes owed vs. paid by year.</p>
+      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">Track federal and state taxes owed and withheld by year.</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <KPICard label={`${CURRENT_YEAR} Total Owed`} value={fmt(totalOwed)} />

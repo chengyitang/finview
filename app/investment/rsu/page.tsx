@@ -192,7 +192,7 @@ export default function RSUPage() {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-2xl font-bold">RSU Tracker</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Track vesting schedules across companies. Data stored in your browser.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Track vesting schedules and current value across companies and grants.</p>
         </div>
       </div>
 

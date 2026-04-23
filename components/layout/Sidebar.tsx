@@ -110,7 +110,7 @@ export default function Sidebar() {
 
         {sidebarOpen && (
           <div className="px-4 py-3 border-t border-gray-200 dark:border-zinc-800">
-            <p className="text-xs text-zinc-400 dark:text-zinc-600">Data stored in your browser only.</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-600">Data stored locally; Drive sync when signed in.</p>
           </div>
         )}
       </aside>

@@ -64,7 +64,7 @@ export default function IncomePage() {
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Income</h1>
-      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">All amounts in USD. Stored in your browser.</p>
+      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">Log income by month and category. All amounts in USD.</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <KPICard label={`Total ${filterYear}`} value={fmt(totalYear)} />
