@@ -46,8 +46,10 @@ export default function DriveSync() {
         const remote = await res.json();
         if (remote && Object.keys(remote).length > 0) {
           restoreAll(remote);
-          // Reload to let all pages re-read localStorage
           window.location.reload();
+        } else {
+          // Drive is empty — push whatever is in localStorage up immediately
+          await push();
         }
       } catch {
         // ignore — keep localStorage data
