@@ -239,10 +239,9 @@ export default function PortfolioPage() {
   const pieTotalValue = pieData.reduce((s, p) => s + p.value, 0);
 
   const assetsChartData = Object.entries(assetsHistory)
-    .filter(([y]) => Number(y) < CURRENT_YEAR)
     .sort(([a], [b]) => Number(a) - Number(b))
     .map(([year, usd]) => ({
-      year: Number(year),
+      year: Number(year) === CURRENT_YEAR ? `${year} YTD` : String(year),
       value: parseFloat((displayCurrency === "TWD" ? usd * fxRate : usd).toFixed(2)),
     }));
 
