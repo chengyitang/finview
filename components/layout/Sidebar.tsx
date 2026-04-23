@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "./ThemeContext";
+import AuthButton from "./AuthButton";
 
 const nav = [
   { label: "Overview", href: "/", icon: "◉" },
@@ -74,8 +75,8 @@ export default function Sidebar() {
           )
         )}
       </nav>
-      <div className="px-4 py-3 border-t border-gray-200 dark:border-zinc-800">
-        <div className="flex items-center justify-between mb-2">
+      <div className="px-4 py-3 border-t border-gray-200 dark:border-zinc-800 space-y-3">
+        <div className="flex items-center justify-between">
           <span className="text-xs text-zinc-500 dark:text-zinc-400">Theme</span>
           <button
             onClick={toggle}
@@ -84,7 +85,7 @@ export default function Sidebar() {
             {dark ? "Light" : "Dark"}
           </button>
         </div>
-        <p className="text-xs text-zinc-400 dark:text-zinc-600">Data stored in your browser only.</p>
+        <AuthButton />
       </div>
     </aside>
   );
