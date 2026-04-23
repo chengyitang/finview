@@ -92,6 +92,8 @@ export default function PortfolioPage() {
   // Ref always holds latest all-market USD total so the save effect below
   // reads current values without needing them as deps.
   const snapshotUSDRef = useRef(0);
+  const fxRateRef = useRef(fxRate);
+  fxRateRef.current = fxRate;
 
   useEffect(() => {
     if (loading || snapshotUSDRef.current === 0) return;
@@ -102,6 +104,73 @@ export default function PortfolioPage() {
       return updated;
     });
   }, [loading]);
+
+  const hasFetchedHistory = useRef(false);
+
+  const fetchHistoricalAssets = useCallback(async (txns: Transaction[]) => {
+    if (txns.length === 0) return;
+    const allSymbols = [...new Set(txns.map((tx) => normalizeTicker(tx.ticker)))];
+    const earliestYear = Math.min(...txns.map((tx) => Number(tx.date.slice(0, 4))));
+    const years: number[] = [];
+    for (let y = earliestYear; y < CURRENT_YEAR; y++) years.push(y);
+    if (years.length === 0) return;
+
+    const pricesByYear: Record<string, Record<number, number>> = {};
+    await Promise.allSettled(
+      allSymbols.map(async (sym) => {
+        try {
+          const res = await fetch(`/api/stock/history?ticker=${encodeURIComponent(sym)}&range=5y&interval=1mo`);
+          const data = await res.json();
+          const points: { date: string; close: number }[] = data.points ?? [];
+          const byYear: Record<number, number> = {};
+          for (const p of points) {
+            if (p.close == null) continue;
+            const mo = p.date.slice(5, 7);
+            const yr = Number(p.date.slice(0, 4));
+            if (mo === "12") byYear[yr] = p.close;
+          }
+          pricesByYear[sym] = byYear;
+        } catch {}
+      })
+    );
+
+    const currentFxRate = fxRateRef.current;
+    const newHistory: Record<number, number> = {};
+    for (const year of years) {
+      const cutoff = `${year}-12-31`;
+      const shares: Record<string, number> = {};
+      for (const tx of txns) {
+        if (tx.date > cutoff) continue;
+        const sym = normalizeTicker(tx.ticker);
+        if (!shares[sym]) shares[sym] = 0;
+        if (tx.type === "Buy" || tx.type === "Split") shares[sym] += tx.shares;
+        if (tx.type === "Sell") shares[sym] -= tx.shares;
+      }
+      let totalUSD = 0;
+      for (const [sym, sh] of Object.entries(shares)) {
+        if (sh <= 0.0001) continue;
+        const price = pricesByYear[sym]?.[year];
+        if (!price) continue;
+        totalUSD += detectCurrency(sym) === "TWD" ? (sh * price) / currentFxRate : sh * price;
+      }
+      if (totalUSD > 0) newHistory[year] = parseFloat(totalUSD.toFixed(2));
+    }
+
+    if (Object.keys(newHistory).length > 0) {
+      setAssetsHistory((prev) => {
+        const updated = { ...newHistory };
+        if (prev[CURRENT_YEAR] !== undefined) updated[CURRENT_YEAR] = prev[CURRENT_YEAR];
+        saveAssetsHistory(updated);
+        return updated;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loading || hasFetchedHistory.current || transactions.length === 0) return;
+    hasFetchedHistory.current = true;
+    fetchHistoricalAssets(transactions);
+  }, [loading, transactions, fetchHistoricalAssets]);
 
   function addTransaction() {
     if (!form.ticker || !form.date) return;

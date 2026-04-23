@@ -1,7 +1,7 @@
 const BASE = "https://query1.finance.yahoo.com/v8/finance/chart";
 
-async function fetchChart(ticker: string, range: string) {
-  const url = `${BASE}/${encodeURIComponent(ticker)}?interval=1d&range=${range}`;
+async function fetchChart(ticker: string, range: string, interval = "1d") {
+  const url = `${BASE}/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}`;
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0" },
     next: { revalidate: 60 },
@@ -23,8 +23,8 @@ export async function yahooQuote(ticker: string) {
   return { price, change, changePercent, lastUpdated };
 }
 
-export async function yahooHistory(ticker: string): Promise<{ date: string; close: number }[]> {
-  const result = await fetchChart(ticker, "6mo");
+export async function yahooHistory(ticker: string, range = "6mo", interval = "1d"): Promise<{ date: string; close: number }[]> {
+  const result = await fetchChart(ticker, range, interval);
   const timestamps: number[] = result.timestamp;
   const closes: number[] = result.indicators.quote[0].close;
   return timestamps

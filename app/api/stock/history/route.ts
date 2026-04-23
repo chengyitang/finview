@@ -31,7 +31,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const points = await yahooHistory(ticker);
+    const range = req.nextUrl.searchParams.get("range") || "6mo";
+    const interval = req.nextUrl.searchParams.get("interval") || "1d";
+    const points = await yahooHistory(ticker, range, interval);
     return NextResponse.json({ points, source: "yahoo" });
   } catch (e) {
     return NextResponse.json({ error: `Failed to fetch history: ${e}` }, { status: 500 });
