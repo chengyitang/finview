@@ -210,7 +210,7 @@ export default function PortfolioPage() {
 
   const trend = calcRealizedTrend(filteredTransactions, fxRate, displayCurrency);
 
-  const cSym = displayCurrency === "TWD" ? "NT$" : "$";
+  const cSym = "$";
   const totalAssets = filteredActive.reduce((s, p) => s + p.marketValue, 0);
   const totalReturn = filteredActive.reduce((s, p) => s + p.totalReturn, 0) + filteredClosed.reduce((s, p) => s + p.totalReturn, 0);
   const totalDivs = filteredActive.reduce((s, p) => s + p.totalDividends, 0) + filteredClosed.reduce((s, p) => s + p.totalDividends, 0);
