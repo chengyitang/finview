@@ -276,8 +276,8 @@ export default function PortfolioPage() {
           {pieData.length > 0 && (
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
               <p className="text-sm font-medium mb-3 text-zinc-600 dark:text-zinc-300">Asset Allocation</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
                   <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name}>
                     {pieData.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
