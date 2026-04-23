@@ -347,7 +347,7 @@ export default function PortfolioPage() {
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="mb-4">
         <h1 className="text-2xl font-bold">Stock Portfolio</h1>
-        <p className="text-zinc-500 dark:text-zinc-400 text-sm">All data saved in your browser. Live prices via Yahoo Finance.</p>
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Live prices via Yahoo Finance.</p>
       </div>
 
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl mb-4 overflow-hidden">

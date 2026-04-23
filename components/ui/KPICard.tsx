@@ -1,3 +1,7 @@
+"use client";
+
+import { useLayout } from "@/components/layout/LayoutContext";
+
 interface Props {
   label: string;
   value: string;
@@ -7,6 +11,7 @@ interface Props {
 }
 
 export default function KPICard({ label, value, sub, positive, negative }: Props) {
+  const { hideValues } = useLayout();
   const valueColor = positive
     ? "text-emerald-500 dark:text-emerald-400"
     : negative
@@ -16,8 +21,14 @@ export default function KPICard({ label, value, sub, positive, negative }: Props
   return (
     <div className="bg-gray-100 dark:bg-zinc-800 rounded-xl px-5 py-4 border border-gray-200 dark:border-zinc-700">
       <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">{label}</p>
-      <p className={`text-2xl font-semibold tabular-nums ${valueColor}`}>{value}</p>
-      {sub && <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{sub}</p>}
+      <p className={`text-2xl font-semibold tabular-nums ${hideValues ? "text-zinc-300 dark:text-zinc-600" : valueColor}`}>
+        {hideValues ? "••••" : value}
+      </p>
+      {sub && (
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
+          {hideValues ? "——" : sub}
+        </p>
+      )}
     </div>
   );
 }
