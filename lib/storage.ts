@@ -36,6 +36,16 @@ export const saveTax = (v: TaxEntry[]): void => save("fv_tax", v);
 export const loadRetirement = (): RetirementAccount[] => load("fv_retirement", []);
 export const saveRetirement = (v: RetirementAccount[]): void => save("fv_retirement", v);
 
-// Assets history — end-of-year snapshots stored in USD
-export const loadAssetsHistory = (): Record<number, number> => load("fv_assets_history", {});
-export const saveAssetsHistory = (v: Record<number, number>): void => save("fv_assets_history", v);
+// Assets history — end-of-year snapshots in USD, keyed by market ("all"|"US"|"TW") then year
+export function loadAssetsHistory(): Record<string, Record<number, number>> {
+  try {
+    const raw = localStorage.getItem("fv_assets_history");
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    // Migrate old flat format { 2024: 100000 } → { all: { 2024: 100000 } }
+    if (typeof Object.values(parsed)[0] === "number") return { all: parsed };
+    return parsed;
+  } catch { return {}; }
+}
+export const saveAssetsHistory = (v: Record<string, Record<number, number>>): void =>
+  save("fv_assets_history", v);

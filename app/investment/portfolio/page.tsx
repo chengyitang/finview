@@ -43,7 +43,7 @@ export default function PortfolioPage() {
   const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "closed" | "transactions">("active");
   const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
-  const [assetsHistory, setAssetsHistory] = useState<Record<number, number>>({});
+  const [assetsHistory, setAssetsHistory] = useState<Record<string, Record<number, number>>>({});
 
   useEffect(() => {
     setTransactions(loadTransactions());
@@ -89,17 +89,22 @@ export default function PortfolioPage() {
     fetchPricesAndFx(transactions);
   }, [transactions, fetchPricesAndFx]);
 
-  // Ref always holds latest all-market USD total so the save effect below
-  // reads current values without needing them as deps.
-  const snapshotUSDRef = useRef(0);
+  // Refs hold latest per-market USD totals; updated each render, read in effects.
+  const snapshotAllRef = useRef(0);
+  const snapshotUSRef = useRef(0);
+  const snapshotTWRef = useRef(0);
   const fxRateRef = useRef(fxRate);
   fxRateRef.current = fxRate;
 
   useEffect(() => {
-    if (loading || snapshotUSDRef.current === 0) return;
-    const usd = snapshotUSDRef.current;
+    if (loading || snapshotAllRef.current === 0) return;
+    const fmt = (n: number) => parseFloat(n.toFixed(2));
     setAssetsHistory((prev) => {
-      const updated = { ...prev, [CURRENT_YEAR]: parseFloat(usd.toFixed(2)) };
+      const updated = {
+        all: { ...prev.all, [CURRENT_YEAR]: fmt(snapshotAllRef.current) },
+        US:  { ...prev.US,  [CURRENT_YEAR]: fmt(snapshotUSRef.current) },
+        TW:  { ...prev.TW,  [CURRENT_YEAR]: fmt(snapshotTWRef.current) },
+      };
       saveAssetsHistory(updated);
       return updated;
     });
@@ -135,7 +140,11 @@ export default function PortfolioPage() {
     );
 
     const currentFxRate = fxRateRef.current;
-    const newHistory: Record<number, number> = {};
+    const fmt = (n: number) => parseFloat(n.toFixed(2));
+    const newAll: Record<number, number> = {};
+    const newUS: Record<number, number> = {};
+    const newTW: Record<number, number> = {};
+
     for (const year of years) {
       const cutoff = `${year}-12-31`;
       const shares: Record<string, number> = {};
@@ -146,20 +155,29 @@ export default function PortfolioPage() {
         if (tx.type === "Buy" || tx.type === "Split") shares[sym] += tx.shares;
         if (tx.type === "Sell") shares[sym] -= tx.shares;
       }
-      let totalUSD = 0;
+      let totAll = 0, totUS = 0, totTW = 0;
       for (const [sym, sh] of Object.entries(shares)) {
         if (sh <= 0.0001) continue;
         const price = pricesByYear[sym]?.[year];
         if (!price) continue;
-        totalUSD += detectCurrency(sym) === "TWD" ? (sh * price) / currentFxRate : sh * price;
+        const isTW = detectCurrency(sym) === "TWD";
+        const usd = isTW ? (sh * price) / currentFxRate : sh * price;
+        totAll += usd;
+        if (isTW) totTW += usd; else totUS += usd;
       }
-      if (totalUSD > 0) newHistory[year] = parseFloat(totalUSD.toFixed(2));
+      if (totAll > 0) {
+        newAll[year] = fmt(totAll);
+        if (totUS > 0) newUS[year] = fmt(totUS);
+        if (totTW > 0) newTW[year] = fmt(totTW);
+      }
     }
 
-    if (Object.keys(newHistory).length > 0) {
+    if (Object.keys(newAll).length > 0) {
       setAssetsHistory((prev) => {
-        const updated = { ...newHistory };
-        if (prev[CURRENT_YEAR] !== undefined) updated[CURRENT_YEAR] = prev[CURRENT_YEAR];
+        const updated = { all: { ...newAll }, US: { ...newUS }, TW: { ...newTW } };
+        if (prev.all?.[CURRENT_YEAR] !== undefined) updated.all[CURRENT_YEAR] = prev.all[CURRENT_YEAR];
+        if (prev.US?.[CURRENT_YEAR]  !== undefined) updated.US[CURRENT_YEAR]  = prev.US[CURRENT_YEAR];
+        if (prev.TW?.[CURRENT_YEAR]  !== undefined) updated.TW[CURRENT_YEAR]  = prev.TW[CURRENT_YEAR];
         saveAssetsHistory(updated);
         return updated;
       });
@@ -300,14 +318,17 @@ export default function PortfolioPage() {
   const totalReturn = filteredActive.reduce((s, p) => s + p.totalReturn, 0) + filteredClosed.reduce((s, p) => s + p.totalReturn, 0);
   const totalDivs = filteredActive.reduce((s, p) => s + p.totalDividends, 0) + filteredClosed.reduce((s, p) => s + p.totalDividends, 0);
 
-  // Keep ref current for snapshot effect (uses all positions, converted to USD)
-  const totalAllMarkets = active.reduce((s, p) => s + p.marketValue, 0);
-  snapshotUSDRef.current = displayCurrency === "TWD" ? totalAllMarkets / fxRate : totalAllMarkets;
+  // Keep per-market refs current for snapshot effect
+  const toUSD = (v: number) => displayCurrency === "TWD" ? v / fxRate : v;
+  snapshotAllRef.current = toUSD(active.reduce((s, p) => s + p.marketValue, 0));
+  snapshotUSRef.current  = toUSD(active.filter((p) => p.currency === "USD").reduce((s, p) => s + p.marketValue, 0));
+  snapshotTWRef.current  = toUSD(active.filter((p) => p.currency === "TWD").reduce((s, p) => s + p.marketValue, 0));
 
   const pieData = filteredActive.filter((p) => p.marketValue > 0).map((p) => ({ name: p.symbol, value: p.marketValue }));
   const pieTotalValue = pieData.reduce((s, p) => s + p.value, 0);
 
-  const assetsChartData = Object.entries(assetsHistory)
+  const marketHistory = assetsHistory[marketFilter] ?? {};
+  const assetsChartData = Object.entries(marketHistory)
     .sort(([a], [b]) => Number(a) - Number(b))
     .map(([year, usd]) => ({
       year: Number(year) === CURRENT_YEAR ? `${year} YTD` : String(year),
