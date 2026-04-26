@@ -38,6 +38,7 @@ export default function PortfolioPage() {
   const [displayCurrency, setDisplayCurrency] = useState<"USD" | "TWD">("USD");
   const [fxRate, setFxRate] = useState<number>(30);
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [changes, setChanges] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
@@ -73,16 +74,19 @@ export default function PortfolioPage() {
     } catch {}
 
     const priceMap: Record<string, number> = {};
+    const changeMap: Record<string, number> = {};
     await Promise.allSettled(
       activeSyms.map(async (sym) => {
         try {
           const res = await fetch(`/api/stock?ticker=${encodeURIComponent(sym)}`);
           const data = await res.json();
           if (data.price) priceMap[sym] = data.price;
+          if (data.change != null) changeMap[sym] = data.change;
         } catch {}
       })
     );
     setPrices(priceMap);
+    setChanges(changeMap);
     setLoading(false);
   }, []);
 
@@ -319,6 +323,17 @@ export default function PortfolioPage() {
   const totalReturn = filteredActive.reduce((s, p) => s + p.totalReturn, 0) + filteredClosed.reduce((s, p) => s + p.totalReturn, 0);
   const totalDivs = filteredActive.reduce((s, p) => s + p.totalDividends, 0) + filteredClosed.reduce((s, p) => s + p.totalDividends, 0);
 
+  const todayPL = filteredActive.reduce((s, p) => {
+    const dailyChange = (changes[p.symbol] ?? 0) * p.shares;
+    const inDisplay =
+      p.currency === "TWD" && displayCurrency === "USD" ? dailyChange / fxRate :
+      p.currency === "USD" && displayCurrency === "TWD" ? dailyChange * fxRate :
+      dailyChange;
+    return s + inDisplay;
+  }, 0);
+  const prevTotal = totalAssets - todayPL;
+  const todayPLPct = prevTotal !== 0 ? (todayPL / prevTotal) * 100 : 0;
+
   // Keep per-market refs current for snapshot effect
   const toUSD = (v: number) => displayCurrency === "TWD" ? v / fxRate : v;
   snapshotAllRef.current = toUSD(active.reduce((s, p) => s + p.marketValue, 0));
@@ -399,10 +414,17 @@ export default function PortfolioPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <KPICard label="Total Assets" value={`${cSym}${fmt2(totalAssets)}`} />
         <KPICard label="Total P/L" value={`${cSym}${fmt2(totalReturn)}`} positive={totalReturn >= 0} negative={totalReturn < 0} />
         <KPICard label="Total Dividends" value={`${cSym}${fmt2(totalDivs)}`} />
+        <KPICard
+          label="Today's P/L"
+          value={`${todayPL >= 0 ? "+" : ""}${cSym}${fmt2(Math.abs(todayPL))}`}
+          sub={loading ? "Loading..." : fmtPct(todayPLPct)}
+          positive={todayPL > 0}
+          negative={todayPL < 0}
+        />
       </div>
 
       {(pieData.length > 0 || assetsChartData.length > 0) && (
