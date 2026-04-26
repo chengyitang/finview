@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
 
 const sections = [
-  { title: "Income", href: "/income", desc: "Track salary, bonuses, and other income sources.", icon: "💵", color: "border-emerald-600 dark:border-emerald-700" },
+  { title: "Net Worth",  href: "/net-worth", desc: "Your total assets minus liabilities — the single most important financial number.", icon: "📋", color: "border-indigo-600 dark:border-indigo-700" },
+  { title: "Income",    href: "/income",    desc: "Track salary, bonuses, and other income sources.", icon: "💵", color: "border-emerald-600 dark:border-emerald-700" },
+  { title: "Expenses",  href: "/expenses",  desc: "Track monthly spending by category and see your savings rate.", icon: "💸", color: "border-orange-600 dark:border-orange-700" },
   { title: "Tax", href: "/tax", desc: "Track federal and state taxes owed and withheld by year.", icon: "🧾", color: "border-yellow-600 dark:border-yellow-700" },
   { title: "401(k)", href: "/retirement/401k", desc: "Log contributions, employer match, and balance.", icon: "🏦", color: "border-blue-600 dark:border-blue-700" },
   { title: "HSA", href: "/retirement/hsa", desc: "Track health savings account contributions and balance.", icon: "🏥", color: "border-teal-600 dark:border-teal-700" },

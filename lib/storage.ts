@@ -1,4 +1,4 @@
-import { Grant, Company, Transaction, IncomeEntry, TaxEntry, RetirementAccount } from "@/types";
+import { Grant, Company, Transaction, IncomeEntry, TaxEntry, RetirementAccount, ExpenseEntry, NetWorthItem, NetWorthSnapshot } from "@/types";
 
 // Sync hook — set by DriveSync component at runtime to avoid circular imports
 let _triggerSync: (() => void) | null = null;
@@ -41,6 +41,16 @@ export const saveTax = (v: TaxEntry[]): void => { save("fv_tax", v); triggerSync
 export const loadRetirement = (): RetirementAccount[] => load("fv_retirement", []);
 export const saveRetirement = (v: RetirementAccount[]): void => { save("fv_retirement", v); triggerSync(); };
 
+// Expenses
+export const loadExpenses = (): ExpenseEntry[] => load("fv_expenses", []);
+export const saveExpenses = (v: ExpenseEntry[]): void => { save("fv_expenses", v); triggerSync(); };
+
+// Net Worth
+export const loadNetWorthItems = (): NetWorthItem[] => load("fv_net_worth_items", []);
+export const saveNetWorthItems = (v: NetWorthItem[]): void => { save("fv_net_worth_items", v); triggerSync(); };
+export const loadNetWorthHistory = (): NetWorthSnapshot[] => load("fv_net_worth_history", []);
+export const saveNetWorthHistory = (v: NetWorthSnapshot[]): void => { save("fv_net_worth_history", v); };
+
 // Assets history — end-of-year snapshots in USD, keyed by market ("all"|"US"|"TW") then year
 export function loadAssetsHistory(): Record<string, Record<number, number>> {
   try {
@@ -65,6 +75,9 @@ export function collectAll() {
     fv_tax: loadTax(),
     fv_retirement: loadRetirement(),
     fv_assets_history: loadAssetsHistory(),
+    fv_expenses: loadExpenses(),
+    fv_net_worth_items: loadNetWorthItems(),
+    fv_net_worth_history: loadNetWorthHistory(),
   };
 }
 
@@ -76,4 +89,7 @@ export function restoreAll(data: Partial<ReturnType<typeof collectAll>>) {
   if (data.fv_tax) save("fv_tax", data.fv_tax);
   if (data.fv_retirement) save("fv_retirement", data.fv_retirement);
   if (data.fv_assets_history) save("fv_assets_history", data.fv_assets_history);
+  if (data.fv_expenses) save("fv_expenses", data.fv_expenses);
+  if (data.fv_net_worth_items) save("fv_net_worth_items", data.fv_net_worth_items);
+  if (data.fv_net_worth_history) save("fv_net_worth_history", data.fv_net_worth_history);
 }

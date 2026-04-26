@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import { useLayout } from "./LayoutContext";
 
 const nav = [
-  { label: "Overview", href: "/", icon: "◉" },
-  { label: "Income", href: "/income", icon: "💵" },
-  { label: "Tax", href: "/tax", icon: "🧾" },
+  { label: "Overview",  href: "/",          icon: "◉" },
+  { label: "Net Worth", href: "/net-worth",  icon: "📋" },
+  { label: "Income",    href: "/income",     icon: "💵" },
+  { label: "Expenses",  href: "/expenses",   icon: "💸" },
+  { label: "Tax",       href: "/tax",        icon: "🧾" },
   {
     label: "Retirement",
     icon: "🏦",

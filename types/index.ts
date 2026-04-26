@@ -90,6 +90,20 @@ export interface IncomeEntry {
   amountUSD: number;
 }
 
+// Expense types
+export type ExpenseCategory =
+  "Housing" | "Food" | "Transport" | "Healthcare" |
+  "Entertainment" | "Subscriptions" | "Education" | "Shopping" | "Personal" | "Other";
+
+export interface ExpenseEntry {
+  id: string;
+  year: number;
+  month: number;
+  category: ExpenseCategory;
+  description: string;
+  amountUSD: number;
+}
+
 // Tax types
 export interface TaxEntry {
   id: string;
@@ -110,4 +124,24 @@ export interface RetirementAccount {
   employerMatch?: number;
   balance: number;
   notes: string;
+}
+
+// Net Worth types
+export type AssetCategory = "cash" | "real_estate" | "vehicle" | "rsu_equity" | "other_asset";
+export type LiabilityCategory = "mortgage" | "student_loan" | "auto_loan" | "credit_card" | "other_liability";
+
+export interface NetWorthItem {
+  id: string;
+  label: string;
+  category: AssetCategory | LiabilityCategory;
+  amountUSD: number;
+  notes?: string;
+  updatedAt: string;
+}
+
+export interface NetWorthSnapshot {
+  date: string;
+  netWorth: number;
+  totalAssets: number;
+  totalLiabilities: number;
 }
