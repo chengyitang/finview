@@ -1,42 +1,119 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { createContext, useContext, useRef, useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { collectAll, restoreAll, registerSync } from "@/lib/storage";
+
+type SyncStatus = "idle" | "pushing" | "pulling" | "ok" | "error";
+
+interface DriveSyncCtx {
+  syncStatus: SyncStatus;
+  syncError: string | null;
+  manualPush: () => Promise<void>;
+  manualPull: () => Promise<void>;
+}
+
+const Ctx = createContext<DriveSyncCtx>({
+  syncStatus: "idle",
+  syncError: null,
+  manualPush: async () => {},
+  manualPull: async () => {},
+});
+
+export const useDriveSync = () => useContext(Ctx);
 
 const DEBOUNCE_MS = 2000;
 const SESSION_PULLED_KEY = "fv_session_pulled";
 
-export default function DriveSync() {
-  const { data: session, status } = useSession();
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function tokenErrorMessage(sessionError: string | undefined): string | null {
+  if (sessionError === "RefreshTokenError" || sessionError === "RefreshTokenMissing") {
+    return "Session expired — sign out and sign back in";
+  }
+  return null;
+}
 
-  const push = useCallback(async () => {
+export default function DriveSync({ children }: { children: React.ReactNode }) {
+  const { data: session, status: authStatus } = useSession();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  function setError(msg: string) {
+    setSyncStatus("error");
+    setSyncError(msg);
+    setTimeout(() => { setSyncStatus("idle"); setSyncError(null); }, 6000);
+  }
+
+  function setOk() {
+    setSyncStatus("ok");
+    setSyncError(null);
+    setTimeout(() => setSyncStatus("idle"), 3000);
+  }
+
+  const doPush = useCallback(async () => {
+    const tokenErr = tokenErrorMessage(session?.error);
+    if (tokenErr) { setError(tokenErr); return; }
     if (!session?.accessToken) return;
+
+    setSyncStatus("pushing");
+    setSyncError(null);
     const data = collectAll();
     try {
-      await fetch("/api/drive/data", {
+      const res = await fetch("/api/drive/data", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-    } catch {
-      // silent — localStorage remains source of truth
+      if (res.ok) {
+        setOk();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(`Upload failed (${res.status}): ${body?.error ?? res.statusText}`);
+      }
+    } catch (err) {
+      setError(`Upload failed: ${err instanceof Error ? err.message : "Network error"}`);
     }
   }, [session]);
 
   const schedulePush = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(push, DEBOUNCE_MS);
-  }, [push]);
+    timerRef.current = setTimeout(doPush, DEBOUNCE_MS);
+  }, [doPush]);
 
   useEffect(() => {
     registerSync(schedulePush);
   }, [schedulePush]);
 
-  // Pull from Drive once per browser session
+  const manualPull = useCallback(async () => {
+    const tokenErr = tokenErrorMessage(session?.error);
+    if (tokenErr) { setError(tokenErr); return; }
+    if (!session?.accessToken) return;
+
+    setSyncStatus("pulling");
+    setSyncError(null);
+    try {
+      const res = await fetch("/api/drive/data");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(`Download failed (${res.status}): ${body?.error ?? res.statusText}`);
+        return;
+      }
+      const remote = await res.json();
+      if (remote && Object.keys(remote).length > 0) {
+        restoreAll(remote);
+        setOk();
+        setTimeout(() => window.location.reload(), 400);
+      } else {
+        setError("Nothing found on Drive — push your data first");
+      }
+    } catch (err) {
+      setError(`Download failed: ${err instanceof Error ? err.message : "Network error"}`);
+    }
+  }, [session]);
+
+  // Auto-pull once per browser session
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (authStatus !== "authenticated") return;
     if (sessionStorage.getItem(SESSION_PULLED_KEY)) return;
     sessionStorage.setItem(SESSION_PULLED_KEY, "1");
 
@@ -49,14 +126,17 @@ export default function DriveSync() {
           restoreAll(remote);
           window.location.reload();
         } else {
-          // Drive empty — push local data up immediately
-          await push();
+          await doPush();
         }
       } catch {
-        // ignore — keep localStorage data
+        // keep localStorage data
       }
     })();
-  }, [status, push]);
+  }, [authStatus, doPush]);
 
-  return null;
+  return (
+    <Ctx.Provider value={{ syncStatus, syncError, manualPush: doPush, manualPull }}>
+      {children}
+    </Ctx.Provider>
+  );
 }

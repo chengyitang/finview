@@ -5,6 +5,7 @@ import { Transaction, ActivePosition, ClosedPosition } from "@/types";
 import { loadTransactions, saveTransactions, loadAssetsHistory, saveAssetsHistory } from "@/lib/storage";
 import { normalizeTicker, detectCurrency, aggregatePortfolio } from "@/lib/portfolio";
 import KPICard from "@/components/ui/KPICard";
+import { useToast, ToastContainer } from "@/components/ui/Toast";
 import {
   PieChart, Pie, Cell, Tooltip, LineChart, Line, CartesianGrid, XAxis, YAxis,
   ResponsiveContainer,
@@ -34,6 +35,7 @@ const INPUT = "w-full bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:b
 type MarketFilter = "all" | "US" | "TW";
 
 export default function PortfolioPage() {
+  const { toasts, addToast, dismiss } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [displayCurrency, setDisplayCurrency] = useState<"USD" | "TWD">("USD");
   const [fxRate, setFxRate] = useState<number>(30);
@@ -45,6 +47,8 @@ export default function PortfolioPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "closed" | "transactions">("active");
   const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [assetsHistory, setAssetsHistory] = useState<Record<string, Record<number, number>>>({});
 
   useEffect(() => {
@@ -71,24 +75,37 @@ export default function PortfolioPage() {
       const fxRes = await fetch("/api/fx");
       const fxData = await fxRes.json();
       if (fxData.rate) setFxRate(fxData.rate);
-    } catch {}
+      else addToast("Failed to load USD/TWD exchange rate — using fallback rate of 30.");
+    } catch {
+      addToast("Failed to load USD/TWD exchange rate — using fallback rate of 30.");
+    }
 
     const priceMap: Record<string, number> = {};
     const changeMap: Record<string, number> = {};
+    const failedTickers: string[] = [];
     await Promise.allSettled(
       activeSyms.map(async (sym) => {
         try {
           const res = await fetch(`/api/stock?ticker=${encodeURIComponent(sym)}`);
           const data = await res.json();
-          if (data.price) priceMap[sym] = data.price;
+          if (data.price) {
+            priceMap[sym] = data.price;
+          } else {
+            failedTickers.push(sym);
+          }
           if (data.change != null) changeMap[sym] = data.change;
-        } catch {}
+        } catch {
+          failedTickers.push(sym);
+        }
       })
     );
+    if (failedTickers.length > 0) {
+      addToast(`Failed to fetch price for: ${failedTickers.join(", ")}`);
+    }
     setPrices(priceMap);
     setChanges(changeMap);
     setLoading(false);
-  }, []);
+  }, [addToast]);
 
   useEffect(() => {
     fetchPricesAndFx(transactions);
@@ -126,11 +143,13 @@ export default function PortfolioPage() {
     if (years.length === 0) return;
 
     const pricesByYear: Record<string, Record<number, number>> = {};
+    let hadHistoryError = false;
     await Promise.allSettled(
       allSymbols.map(async (sym) => {
         try {
           const res = await fetch(`/api/stock/history?ticker=${encodeURIComponent(sym)}&range=5y&interval=1mo`);
           const data = await res.json();
+          if (data.error) { hadHistoryError = true; return; }
           const points: { date: string; close: number }[] = data.points ?? [];
           const byYear: Record<number, number> = {};
           for (const p of points) {
@@ -140,9 +159,14 @@ export default function PortfolioPage() {
             if (mo === "12") byYear[yr] = p.close;
           }
           pricesByYear[sym] = byYear;
-        } catch {}
+        } catch {
+          hadHistoryError = true;
+        }
       })
     );
+    if (hadHistoryError) {
+      addToast("Some historical price data could not be loaded. Asset growth chart may be incomplete.");
+    }
 
     const currentFxRate = fxRateRef.current;
     const fmt = (n: number) => parseFloat(n.toFixed(2));
@@ -187,7 +211,7 @@ export default function PortfolioPage() {
         return updated;
       });
     }
-  }, []);
+  }, [addToast]);
 
   useEffect(() => {
     if (loading || hasFetchedHistory.current || transactions.length === 0) return;
@@ -195,23 +219,56 @@ export default function PortfolioPage() {
     fetchHistoricalAssets(transactions);
   }, [loading, transactions, fetchHistoricalAssets]);
 
+  function startEditTx(tx: Transaction) {
+    setEditingTxId(tx.id);
+    setShowForm(true);
+    setForm({
+      date: tx.date,
+      ticker: tx.ticker,
+      stockName: tx.stockName ?? "",
+      type: tx.type,
+      shares: String(tx.shares),
+      price: String(tx.price),
+      fee: String(tx.fee),
+    });
+  }
+
+  function cancelEditTx() {
+    setEditingTxId(null);
+    setForm(EMPTY_FORM);
+  }
+
   function addTransaction() {
     if (!form.ticker || !form.date) return;
-    const tx: Transaction = {
-      id: crypto.randomUUID(),
-      date: form.date,
-      ticker: form.ticker.trim().toUpperCase(),
-      stockName: form.stockName.trim(),
-      type: form.type,
-      shares: parseFloat(form.shares) || 0,
-      price: parseFloat(form.price) || 0,
-      fee: parseFloat(form.fee) || 0,
-    };
-    const updated = [...transactions, tx].sort((a, b) => a.date.localeCompare(b.date));
-    setTransactions(updated);
-    saveTransactions(updated);
-    setForm(EMPTY_FORM);
-    setShowForm(false);
+    if (editingTxId) {
+      const updated = transactions
+        .map((t) => t.id === editingTxId
+          ? { ...t, date: form.date, ticker: form.ticker.trim().toUpperCase(), stockName: form.stockName.trim(), type: form.type, shares: parseFloat(form.shares) || 0, price: parseFloat(form.price) || 0, fee: parseFloat(form.fee) || 0 }
+          : t
+        )
+        .sort((a, b) => a.date.localeCompare(b.date));
+      setTransactions(updated);
+      saveTransactions(updated);
+      setEditingTxId(null);
+      setForm(EMPTY_FORM);
+      setShowForm(false);
+    } else {
+      const tx: Transaction = {
+        id: crypto.randomUUID(),
+        date: form.date,
+        ticker: form.ticker.trim().toUpperCase(),
+        stockName: form.stockName.trim(),
+        type: form.type,
+        shares: parseFloat(form.shares) || 0,
+        price: parseFloat(form.price) || 0,
+        fee: parseFloat(form.fee) || 0,
+      };
+      const updated = [...transactions, tx].sort((a, b) => a.date.localeCompare(b.date));
+      setTransactions(updated);
+      saveTransactions(updated);
+      setForm(EMPTY_FORM);
+      setShowForm(false);
+    }
   }
 
   function removeTransaction(id: string) {
@@ -257,6 +314,15 @@ export default function PortfolioPage() {
   function importCSV(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (
+      transactions.length > 0 &&
+      !window.confirm(
+        `Importing will replace all ${transactions.length} existing transaction${transactions.length === 1 ? "" : "s"} with the data from your CSV. This cannot be undone.\n\nContinue?`
+      )
+    ) {
+      e.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const lines = (ev.target?.result as string).trim().split(/\r?\n/);
@@ -296,7 +362,7 @@ export default function PortfolioPage() {
         });
       }
       if (newTxs.length === 0) return;
-      const updated = [...transactions, ...newTxs].sort((a, b) => a.date.localeCompare(b.date));
+      const updated = newTxs.sort((a, b) => a.date.localeCompare(b.date));
       setTransactions(updated);
       saveTransactions(updated);
     };
@@ -317,6 +383,21 @@ export default function PortfolioPage() {
         const isTW = detectCurrency(sym) === "TWD";
         return marketFilter === "TW" ? isTW : !isTW;
       });
+
+  const q = searchQuery.trim().toLowerCase();
+  const searchedActive = q
+    ? filteredActive.filter((p) => p.symbol.toLowerCase().includes(q) || p.stockName?.toLowerCase().includes(q))
+    : filteredActive;
+  const searchedClosed = q
+    ? filteredClosed.filter((p) => p.symbol.toLowerCase().includes(q) || p.stockName?.toLowerCase().includes(q))
+    : filteredClosed;
+  const searchedTransactions = q
+    ? filteredTransactions.filter((tx) =>
+        normalizeTicker(tx.ticker).toLowerCase().includes(q) ||
+        tx.type.toLowerCase().includes(q) ||
+        (tx.stockName ?? "").toLowerCase().includes(q)
+      )
+    : filteredTransactions;
 
   const cSym = "$";
   const totalAssets = filteredActive.reduce((s, p) => s + p.marketValue, 0);
@@ -359,6 +440,7 @@ export default function PortfolioPage() {
     }`;
 
   return (
+    <>
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="mb-4">
         <h1 className="text-2xl font-bold">Stock Portfolio</h1>
@@ -429,6 +511,22 @@ export default function PortfolioPage() {
 
       {(pieData.length > 0 || assetsChartData.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {assetsChartData.length > 0 && (
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
+              <p className="text-sm font-medium mb-3 text-zinc-600 dark:text-zinc-300">Total Assets Growth</p>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={assetsChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" className="dark:stroke-zinc-700" />
+                  <XAxis dataKey="year" tick={{ fill: "#71717a", fontSize: 12 }} />
+                  <YAxis tick={{ fill: "#71717a", fontSize: 12 }}
+                    tickFormatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${(v / 1_000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v) => [`${cSym}${fmt2(Number(v))}`, "Total Assets"]} />
+                  <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2}
+                    dot={{ fill: "#3b82f6", r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
           {pieData.length > 0 && (
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
               <p className="text-sm font-medium mb-3 text-zinc-600 dark:text-zinc-300">Asset Allocation</p>
@@ -449,32 +547,16 @@ export default function PortfolioPage() {
               </ResponsiveContainer>
             </div>
           )}
-          {assetsChartData.length > 0 && (
-            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
-              <p className="text-sm font-medium mb-3 text-zinc-600 dark:text-zinc-300">Total Assets Growth</p>
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={assetsChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" className="dark:stroke-zinc-700" />
-                  <XAxis dataKey="year" tick={{ fill: "#71717a", fontSize: 12 }} />
-                  <YAxis tick={{ fill: "#71717a", fontSize: 12 }}
-                    tickFormatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${(v / 1_000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v) => [`${cSym}${fmt2(Number(v))}`, "Total Assets"]} />
-                  <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2}
-                    dot={{ fill: "#3b82f6", r: 4 }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Add Transaction Form */}
+      {/* Add / Edit Transaction Form */}
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl mb-4 overflow-hidden">
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { if (editingTxId) cancelEditTx(); setShowForm(!showForm); }}
           className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
         >
-          <span className="font-semibold text-sm">Add Transaction</span>
+          <span className="font-semibold text-sm">{editingTxId ? "Edit Transaction" : "Add Transaction"}</span>
           <span className="text-zinc-400 text-xs">{showForm ? "▲" : "▼"}</span>
         </button>
         {showForm && (
@@ -529,10 +611,18 @@ export default function PortfolioPage() {
                   className={INPUT} />
               </div>
             </div>
-            <button onClick={addTransaction}
-              className="mt-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
-              Add
-            </button>
+            <div className="flex gap-2 mt-3">
+              <button onClick={addTransaction}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                {editingTxId ? "Save Changes" : "Add"}
+              </button>
+              {editingTxId && (
+                <button onClick={cancelEditTx}
+                  className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-4 py-2 rounded-lg text-sm">
+                  Cancel
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -551,6 +641,18 @@ export default function PortfolioPage() {
         ))}
         <div className="flex-1" />
         <div className="flex items-center gap-2 mb-1">
+          <div className="relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-7 pr-3 py-1 text-sm bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 w-32 focus:w-44 transition-all focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
           <button onClick={exportCSV}
             className="px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
             Export
@@ -582,10 +684,10 @@ export default function PortfolioPage() {
               {loading && (
                 <tr><td colSpan={8} className="px-4 py-6 text-center text-zinc-400 dark:text-zinc-500">Fetching live prices...</td></tr>
               )}
-              {!loading && filteredActive.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">No active positions{marketFilter !== "all" ? ` in ${marketFilter}` : ""}. Add transactions to get started.</td></tr>
+              {!loading && searchedActive.length === 0 && (
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">{q ? `No results for "${searchQuery}".` : `No active positions${marketFilter !== "all" ? ` in ${marketFilter}` : ""}. Add transactions to get started.`}</td></tr>
               )}
-              {!loading && filteredActive.map((p) => (
+              {!loading && searchedActive.map((p) => (
                 <tr key={p.symbol} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
                   <td className="px-4 py-3">
                     <p className="font-medium">{p.symbol}</p>
@@ -606,11 +708,11 @@ export default function PortfolioPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && filteredActive.length > 1 && (() => {
-                const totMktVal = filteredActive.reduce((s, p) => s + p.marketValue, 0);
-                const totCapGain = filteredActive.reduce((s, p) => s + p.capitalGain, 0);
-                const totReturn = filteredActive.reduce((s, p) => s + p.totalReturn, 0);
-                const totCost = filteredActive.reduce((s, p) => s + p.avgCost * p.shares, 0);
+              {!loading && searchedActive.length > 1 && (() => {
+                const totMktVal = searchedActive.reduce((s, p) => s + p.marketValue, 0);
+                const totCapGain = searchedActive.reduce((s, p) => s + p.capitalGain, 0);
+                const totReturn = searchedActive.reduce((s, p) => s + p.totalReturn, 0);
+                const totCost = searchedActive.reduce((s, p) => s + p.avgCost * p.shares, 0);
                 const blendedPct = totCost > 0 ? (totReturn / totCost) * 100 : 0;
                 return (
                   <tr className="border-t-2 border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/50 font-semibold">
@@ -645,9 +747,9 @@ export default function PortfolioPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredClosed.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">No closed positions{marketFilter !== "all" ? ` in ${marketFilter}` : ""}.</td></tr>
-              ) : filteredClosed.map((p) => (
+              {searchedClosed.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">{q ? `No results for "${searchQuery}".` : `No closed positions${marketFilter !== "all" ? ` in ${marketFilter}` : ""}.`}</td></tr>
+              ) : searchedClosed.map((p) => (
                 <tr key={p.symbol} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
                   <td className="px-4 py-3">
                     <p className="font-medium">{p.symbol}</p>
@@ -687,9 +789,9 @@ export default function PortfolioPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">No transactions{marketFilter !== "all" ? ` in ${marketFilter}` : ""} yet.</td></tr>
-              ) : [...filteredTransactions].reverse().map((tx) => (
+              {searchedTransactions.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">{q ? `No results for "${searchQuery}".` : `No transactions${marketFilter !== "all" ? ` in ${marketFilter}` : ""} yet.`}</td></tr>
+              ) : [...searchedTransactions].reverse().map((tx) => (
                 <tr key={tx.id} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
                   <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{tx.date}</td>
                   <td className="px-4 py-3 font-medium">{normalizeTicker(tx.ticker)}</td>
@@ -705,7 +807,12 @@ export default function PortfolioPage() {
                   <td className="px-4 py-3 text-right font-mono">{tx.price}</td>
                   <td className="px-4 py-3 text-right font-mono">{tx.fee}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => removeTransaction(tx.id)} className="text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button onClick={() => { startEditTx(tx); setActiveTab("transactions"); }}
+                        className="text-zinc-400 dark:text-zinc-600 hover:text-blue-500 dark:hover:text-blue-400 text-xs">✎</button>
+                      <button onClick={() => removeTransaction(tx.id)}
+                        className="text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 text-xs">✕</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -714,5 +821,7 @@ export default function PortfolioPage() {
         </div>
       )}
     </div>
+    <ToastContainer toasts={toasts} dismiss={dismiss} />
+    </>
   );
 }

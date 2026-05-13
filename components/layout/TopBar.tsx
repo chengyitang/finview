@@ -3,11 +3,13 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useLayout } from "./LayoutContext";
 import { useTheme } from "./ThemeContext";
+import { useDriveSync } from "./DriveSync";
 
 export default function TopBar() {
   const { toggleSidebar, hideValues, toggleHideValues } = useLayout();
   const { dark, toggle } = useTheme();
   const { data: session, status } = useSession();
+  const { syncStatus, syncError, manualPush, manualPull } = useDriveSync();
 
   return (
     <header className="h-12 shrink-0 flex items-center justify-between px-4 border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-10">
@@ -27,11 +29,54 @@ export default function TopBar() {
 
       {/* Right: drive sync + auth + theme */}
       <div className="flex items-center gap-3">
-        {/* Drive sync status */}
+        {/* Drive sync controls */}
         {status === "authenticated" && (
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 hidden sm:block">Drive sync on</span>
+          <div className="flex items-center gap-1 relative group">
+            {/* Status indicator */}
+            {syncStatus === "pushing" || syncStatus === "pulling" ? (
+              <svg className="w-3.5 h-3.5 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            ) : syncStatus === "ok" ? (
+              <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : syncStatus === "error" ? (
+              <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />
+            )}
+            {/* Push */}
+            <button
+              onClick={manualPush}
+              disabled={syncStatus === "pushing" || syncStatus === "pulling"}
+              className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40"
+              title="Push local data to Drive"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
+              </svg>
+            </button>
+            {/* Pull */}
+            <button
+              onClick={manualPull}
+              disabled={syncStatus === "pushing" || syncStatus === "pulling"}
+              className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40"
+              title="Pull latest data from Drive"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8v-2a2 2 0 012-2h12a2 2 0 012 2v2M12 20V8m0 12l-4-4m4 4l4-4" />
+              </svg>
+            </button>
+            {/* Error tooltip */}
+            {syncStatus === "error" && syncError && (
+              <div className="absolute top-full right-0 mt-1.5 z-50 w-64 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 shadow-lg">
+                <p className="text-xs text-red-700 dark:text-red-300 leading-snug">{syncError}</p>
+              </div>
+            )}
           </div>
         )}
 

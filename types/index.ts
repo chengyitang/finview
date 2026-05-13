@@ -100,8 +100,23 @@ export interface ExpenseEntry {
   year: number;
   month: number;
   category: ExpenseCategory;
+  subCategory?: string;
   description: string;
   amountUSD: number;
+}
+
+// Crypto types
+export type CryptoTxType = "Buy" | "Sell" | "Receive" | "Send";
+
+export interface CryptoTransaction {
+  id: string;
+  date: string;
+  symbol: string;
+  coinName: string;
+  type: CryptoTxType;
+  amount: number;
+  priceUSD: number;
+  fee: number;
 }
 
 // Tax types
@@ -134,7 +149,8 @@ export interface NetWorthItem {
   id: string;
   label: string;
   category: AssetCategory | LiabilityCategory;
-  amountUSD: number;
+  amountUSD: number;   // raw amount in `currency` (field name kept for backward compat)
+  currency?: "USD" | "TWD";
   notes?: string;
   updatedAt: string;
 }

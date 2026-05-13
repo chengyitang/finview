@@ -52,27 +52,45 @@ export function aggregatePortfolio(
     let dividendsNative = 0;
     let sumCashFlowsNative = 0;
 
-    for (const tx of txs) {
+    // Running WAVG to correctly reset cost basis when position fully closes
+    let runningShares = 0;
+    let runningCostNative = 0;
+
+    const sortedTxs = [...txs].sort((a, b) => a.date.localeCompare(b.date));
+
+    for (const tx of sortedTxs) {
       const cf = computeCashFlow(tx);
       sumCashFlowsNative += cf;
 
       if (tx.type === "Buy") {
         totalBuyShares += tx.shares;
         totalBuyCostNative += Math.abs(cf);
+        runningShares += tx.shares;
+        runningCostNative += Math.abs(cf);
       } else if (tx.type === "Sell") {
         totalSellShares += tx.shares;
         totalSellProceedsNative += cf;
+        if (runningShares > 0) {
+          const runningAvg = runningCostNative / runningShares;
+          runningCostNative -= tx.shares * runningAvg;
+          runningShares -= tx.shares;
+          if (runningShares < 0.0001) {
+            runningShares = 0;
+            runningCostNative = 0;
+          }
+        }
       } else if (tx.type === "Dividend") {
         dividendsNative += cf;
       } else if (tx.type === "Split") {
         totalBuyShares += tx.shares;
+        runningShares += tx.shares;
       }
     }
 
-    const currentShares = totalBuyShares - totalSellShares;
+    const currentShares = runningShares;
 
     if (currentShares > 0.0001) {
-      const avgCostNative = totalBuyShares > 0 ? totalBuyCostNative / totalBuyShares : 0;
+      const avgCostNative = runningShares > 0 ? runningCostNative / runningShares : 0;
       const currPriceNative = prices[symbol] ?? 0;
       const marketValueNative = currentShares * currPriceNative;
       const capitalGainNative = (currPriceNative - avgCostNative) * currentShares;

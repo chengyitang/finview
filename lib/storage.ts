@@ -1,4 +1,4 @@
-import { Grant, Company, Transaction, IncomeEntry, TaxEntry, RetirementAccount, ExpenseEntry, NetWorthItem, NetWorthSnapshot } from "@/types";
+import { Grant, Company, Transaction, IncomeEntry, TaxEntry, RetirementAccount, ExpenseEntry, NetWorthItem, NetWorthSnapshot, CryptoTransaction } from "@/types";
 
 // Sync hook — set by DriveSync component at runtime to avoid circular imports
 let _triggerSync: (() => void) | null = null;
@@ -45,6 +45,12 @@ export const saveRetirement = (v: RetirementAccount[]): void => { save("fv_retir
 export const loadExpenses = (): ExpenseEntry[] => load("fv_expenses", []);
 export const saveExpenses = (v: ExpenseEntry[]): void => { save("fv_expenses", v); triggerSync(); };
 
+// Crypto
+export const loadCryptoTransactions = (): CryptoTransaction[] => load("fv_crypto_txns", []);
+export const saveCryptoTransactions = (v: CryptoTransaction[]): void => { save("fv_crypto_txns", v); triggerSync(); };
+export const loadCryptoSnapshot = (): { valueUSD: number; updatedAt: string } | null => load("fv_crypto_snapshot", null);
+export const saveCryptoSnapshot = (v: { valueUSD: number; updatedAt: string }): void => save("fv_crypto_snapshot", v);
+
 // Net Worth
 export const loadNetWorthItems = (): NetWorthItem[] => load("fv_net_worth_items", []);
 export const saveNetWorthItems = (v: NetWorthItem[]): void => { save("fv_net_worth_items", v); triggerSync(); };
@@ -71,6 +77,7 @@ export function collectAll() {
     fv_rsu_grants: loadGrants(),
     fv_rsu_companies: loadCustomCompanies(),
     fv_portfolio_txns: loadTransactions(),
+    fv_crypto_txns: loadCryptoTransactions(),
     fv_income: loadIncome(),
     fv_tax: loadTax(),
     fv_retirement: loadRetirement(),
@@ -85,6 +92,7 @@ export function restoreAll(data: Partial<ReturnType<typeof collectAll>>) {
   if (data.fv_rsu_grants) save("fv_rsu_grants", data.fv_rsu_grants);
   if (data.fv_rsu_companies) save("fv_rsu_companies", data.fv_rsu_companies);
   if (data.fv_portfolio_txns) save("fv_portfolio_txns", data.fv_portfolio_txns);
+  if (data.fv_crypto_txns) save("fv_crypto_txns", data.fv_crypto_txns);
   if (data.fv_income) save("fv_income", data.fv_income);
   if (data.fv_tax) save("fv_tax", data.fv_tax);
   if (data.fv_retirement) save("fv_retirement", data.fv_retirement);

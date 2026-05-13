@@ -24,6 +24,7 @@ const nav = [
     icon: "📈",
     children: [
       { label: "Portfolio", href: "/investment/portfolio", icon: "📊" },
+      { label: "Crypto", href: "/investment/crypto", icon: "₿" },
       { label: "RSU", href: "/investment/rsu", icon: "📈" },
     ],
   },

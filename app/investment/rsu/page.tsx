@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Company, Grant, VestingEvent } from "@/types";
 import { loadGrants, saveGrants, loadCustomCompanies, saveCustomCompanies } from "@/lib/storage";
 import { BUILTIN_COMPANIES } from "@/lib/companies";
 import { getVestingEvents, calcTotalValue } from "@/lib/vesting";
 import { getAmazonReferenceDate, formatDateISO } from "@/lib/referenceDate";
 import KPICard from "@/components/ui/KPICard";
+import { useToast, ToastContainer } from "@/components/ui/Toast";
+import {
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ReferenceLine, ResponsiveContainer,
+} from "recharts";
 
 const VESTING_PRESETS: Record<string, { label: string; tranches: Company["tranches"] }> = {
   annual4: {
@@ -32,11 +37,91 @@ const fmt2 = (n: number) =>
 
 const INPUT = "w-full bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100";
 
+function PriceHistoryChart({
+  company,
+  cGrants,
+  history,
+  loading,
+}: {
+  company: Company;
+  cGrants: Grant[];
+  history: { date: string; close: number }[] | undefined;
+  loading: boolean;
+}) {
+  if (company.private) return null;
+  if (loading && !history?.length) {
+    return (
+      <div className="px-5 py-3 border-b border-gray-100 dark:border-zinc-800">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">Loading price history…</p>
+      </div>
+    );
+  }
+  if (!history?.length) return null;
+
+  const allEvents = cGrants.flatMap((g) => getVestingEvents(g, company));
+  const grantMonths = [...new Set(cGrants.map((g) => g.grantDate.slice(0, 7)))];
+  const vestedMonths = [...new Set(allEvents.filter((e) => e.vested).map((e) => e.vestDate.slice(0, 7)))];
+  const upcomingMonths = [...new Set(allEvents.filter((e) => !e.vested).map((e) => e.vestDate.slice(0, 7)))];
+
+  const chartMin = history[0].date;
+  const chartMax = history[history.length - 1].date;
+  const inRange = (ym: string) => ym >= chartMin.slice(0, 7) && ym <= chartMax.slice(0, 7);
+
+  const refX = (ym: string) => history.find((p) => p.date.slice(0, 7) === ym)?.date ?? ym;
+
+  return (
+    <div className="px-5 pt-3 pb-2 border-b border-gray-100 dark:border-zinc-800">
+      <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">
+        Price History — {company.ticker} (5Y monthly)
+      </p>
+      <ResponsiveContainer width="100%" height={180}>
+        <ComposedChart data={history} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+          <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }}
+            tickFormatter={(d: string) => d.slice(0, 7)} interval={11} />
+          <YAxis tick={{ fill: "#71717a", fontSize: 10 }}
+            tickFormatter={(v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+            width={48} />
+          <Tooltip
+            formatter={(v) => [`$${fmt2(Number(v))}`, "Close"]}
+            labelFormatter={(l) => String(l).slice(0, 7)}
+          />
+          <Line type="monotone" dataKey="close" stroke="#3b82f6" strokeWidth={2} dot={false} />
+          {grantMonths.filter(inRange).map((ym) => (
+            <ReferenceLine key={`g-${ym}`} x={refX(ym)} stroke="#818cf8" strokeDasharray="4 3" strokeWidth={1.5} />
+          ))}
+          {vestedMonths.filter(inRange).map((ym) => (
+            <ReferenceLine key={`v-${ym}`} x={refX(ym)} stroke="#10b981" strokeWidth={1.5} />
+          ))}
+          {upcomingMonths.filter(inRange).map((ym) => (
+            <ReferenceLine key={`u-${ym}`} x={refX(ym)} stroke="#f59e0b" strokeDasharray="4 3" strokeWidth={1.5} />
+          ))}
+        </ComposedChart>
+      </ResponsiveContainer>
+      <div className="flex gap-4 mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-4 border-t-2 border-dashed border-indigo-400" />Grant date
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-4 border-t-2 border-emerald-500" />Vested
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-4 border-t-2 border-dashed border-amber-400" />Upcoming vest
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function RSUPage() {
+  const { toasts, addToast, dismiss } = useToast();
   const [grants, setGrants] = useState<Grant[]>([]);
   const [customCompanies, setCustomCompanies] = useState<Company[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [priceHistory, setPriceHistory] = useState<Record<string, { date: string; close: number }[]>>({});
+  const [historyLoading, setHistoryLoading] = useState<Record<string, boolean>>({});
+  const fetchedHistory = useRef(new Set<string>());
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(BUILTIN_COMPANIES[0].id);
   const [showGrantForm, setShowGrantForm] = useState(false);
   const [showCompanyForm, setShowCompanyForm] = useState(false);
@@ -65,6 +150,9 @@ export default function RSUPage() {
 
   useEffect(() => {
     fetchPricesForVisible(grants, allCompanies);
+    allCompanies
+      .filter((c) => !c.private && grants.some((g) => g.companyId === c.id))
+      .forEach((c) => fetchHistory(c.ticker));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grants]);
 
@@ -76,9 +164,14 @@ export default function RSUPage() {
       const data = await res.json();
       if (data.price) {
         setPrices((p) => ({ ...p, [ticker]: data.price }));
+        setLoading((l) => ({ ...l, [ticker]: false }));
         return data.price as number;
+      } else {
+        addToast(`Failed to fetch price for ${ticker}.`);
       }
-    } catch {}
+    } catch {
+      addToast(`Failed to fetch price for ${ticker}.`);
+    }
     setLoading((l) => ({ ...l, [ticker]: false }));
     return 0;
   }
@@ -89,10 +182,31 @@ export default function RSUPage() {
     try {
       const res = await fetch(`/api/stock/avg?ticker=AMZN&referenceDate=${refStr}`);
       const data = await res.json();
-      return data.avg ?? 0;
+      if (data.avg) return data.avg;
+      addToast("Could not load Amazon reference price — enter grant shares manually.");
+      return 0;
     } catch {
+      addToast("Could not load Amazon reference price — enter grant shares manually.");
       return 0;
     }
+  }
+
+  async function fetchHistory(ticker: string) {
+    if (fetchedHistory.current.has(ticker)) return;
+    fetchedHistory.current.add(ticker);
+    setHistoryLoading((l) => ({ ...l, [ticker]: true }));
+    try {
+      const res = await fetch(`/api/stock/history?ticker=${encodeURIComponent(ticker)}&range=5y&interval=1mo`);
+      const data = await res.json();
+      if (Array.isArray(data.points) && data.points.length > 0) {
+        setPriceHistory((prev) => ({ ...prev, [ticker]: data.points }));
+      } else {
+        addToast(`Failed to load price history for ${ticker}.`);
+      }
+    } catch {
+      addToast(`Failed to load price history for ${ticker}.`);
+    }
+    setHistoryLoading((l) => ({ ...l, [ticker]: false }));
   }
 
   async function fetchPricesForVisible(grantList: Grant[], companies: Company[]) {
@@ -188,6 +302,7 @@ export default function RSUPage() {
   const selectedCompany = allCompanies.find((c) => c.id === selectedCompanyId);
 
   return (
+    <>
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-2">
         <div>
@@ -368,6 +483,12 @@ export default function RSUPage() {
                   </button>
                 </div>
               </div>
+              <PriceHistoryChart
+                company={company}
+                cGrants={cGrants}
+                history={priceHistory[company.ticker]}
+                loading={!!historyLoading[company.ticker]}
+              />
               <div className="divide-y divide-gray-100 dark:divide-zinc-800/50">
                 {cGrants.map((grant: Grant) => {
                   const events = getVestingEvents(grant, company);
@@ -438,5 +559,7 @@ export default function RSUPage() {
         </div>
       )}
     </div>
+    <ToastContainer toasts={toasts} dismiss={dismiss} />
+    </>
   );
 }

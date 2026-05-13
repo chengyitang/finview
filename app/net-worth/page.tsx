@@ -6,7 +6,7 @@ import { NetWorthItem, NetWorthSnapshot, AssetCategory, LiabilityCategory } from
 import {
   loadNetWorthItems, saveNetWorthItems,
   loadNetWorthHistory, saveNetWorthHistory,
-  loadAssetsHistory, loadRetirement,
+  loadAssetsHistory, loadRetirement, loadCryptoSnapshot,
 } from "@/lib/storage";
 import KPICard from "@/components/ui/KPICard";
 import {
@@ -37,6 +37,9 @@ const fmt = (n: number) =>
 const fmt2 = (n: number) =>
   `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const fmtTWD = (n: number) =>
+  `NT$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
 function isAsset(cat: string): boolean {
   return ASSET_CATEGORIES.includes(cat as AssetCategory);
 }
@@ -45,10 +48,12 @@ export default function NetWorthPage() {
   const [items, setItems] = useState<NetWorthItem[]>([]);
   const [history, setHistory] = useState<NetWorthSnapshot[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [fxRate, setFxRate] = useState(30);
   const [form, setForm] = useState({
     label: "",
     category: "cash" as AssetCategory | LiabilityCategory,
-    amountUSD: "",
+    amount: "",
+    currency: "USD" as "USD" | "TWD",
     notes: "",
   });
 
@@ -66,14 +71,21 @@ export default function NetWorthPage() {
   const ira = latestBalance("IRA");
   const retirementTotal = k401 + hsa + ira;
 
+  const cryptoSnap = loadCryptoSnapshot();
+  const cryptoUSD = cryptoSnap && cryptoSnap.valueUSD > 0 ? cryptoSnap.valueUSD : 0;
+
   useEffect(() => {
     setItems(loadNetWorthItems());
     setHistory(loadNetWorthHistory());
+    fetch("/api/fx").then((r) => r.json()).then((d) => { if (d.rate) setFxRate(d.rate); }).catch(() => {});
   }, []);
 
-  const manualAssets = items.filter((i) => isAsset(i.category)).reduce((s, i) => s + i.amountUSD, 0);
-  const totalLiabilities = items.filter((i) => !isAsset(i.category)).reduce((s, i) => s + i.amountUSD, 0);
-  const autoAssets = portfolioUSD + retirementTotal;
+  const itemToUSD = (item: NetWorthItem) =>
+    item.currency === "TWD" ? item.amountUSD / fxRate : item.amountUSD;
+
+  const manualAssets = items.filter((i) => isAsset(i.category)).reduce((s, i) => s + itemToUSD(i), 0);
+  const totalLiabilities = items.filter((i) => !isAsset(i.category)).reduce((s, i) => s + itemToUSD(i), 0);
+  const autoAssets = portfolioUSD + retirementTotal + cryptoUSD;
   const totalAssets = autoAssets + manualAssets;
   const netWorth = totalAssets - totalLiabilities;
   const debtToAsset = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
@@ -90,22 +102,23 @@ export default function NetWorthPage() {
       return updated;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, portfolioUSD, retirementTotal]);
+  }, [items, portfolioUSD, retirementTotal, cryptoUSD]);
 
   function addItem() {
-    if (!form.label || !form.amountUSD || isNaN(Number(form.amountUSD))) return;
+    if (!form.label || !form.amount || isNaN(Number(form.amount))) return;
     const item: NetWorthItem = {
       id: crypto.randomUUID(),
       label: form.label,
       category: form.category,
-      amountUSD: parseFloat(form.amountUSD),
+      amountUSD: parseFloat(form.amount),
+      currency: form.currency,
       notes: form.notes || undefined,
       updatedAt: new Date().toISOString().slice(0, 10),
     };
     const updated = [...items, item];
     setItems(updated);
     saveNetWorthItems(updated);
-    setForm({ label: "", category: "cash", amountUSD: "", notes: "" });
+    setForm({ label: "", category: "cash", amount: "", currency: form.currency, notes: "" });
   }
 
   function removeItem(id: string) {
@@ -153,8 +166,8 @@ export default function NetWorthPage() {
               <YAxis tick={{ fill: "#71717a", fontSize: 11 }}
                 tickFormatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${(v / 1_000).toFixed(0)}k`} />
               <Tooltip formatter={(v) => [fmt2(Number(v)), "Net Worth"]} />
-              <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2}
-                dot={{ fill: "#6366f1", r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2}
+                dot={{ fill: "#3b82f6", r: 4 }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -178,6 +191,18 @@ export default function NetWorthPage() {
               </td>
               <td className="px-4 py-3 text-right">
                 <Link href="/investment/portfolio" className="text-xs text-blue-500 hover:text-blue-400">Update →</Link>
+              </td>
+            </tr>
+            <tr className="border-b border-gray-100 dark:border-zinc-800/50">
+              <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">Crypto</td>
+              <td className="px-4 py-3 text-zinc-400 dark:text-zinc-500 text-xs">
+                {cryptoSnap ? `as of ${cryptoSnap.updatedAt}` : "no data"}
+              </td>
+              <td className="px-4 py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">
+                {cryptoUSD > 0 ? fmt(cryptoUSD) : "—"}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <Link href="/investment/crypto" className="text-xs text-blue-500 hover:text-blue-400">Update →</Link>
               </td>
             </tr>
             {[
@@ -241,10 +266,18 @@ export default function NetWorthPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Amount (USD)</label>
-                <input type="number" placeholder="0" value={form.amountUSD}
-                  onChange={(e) => setForm((f) => ({ ...f, amountUSD: e.target.value }))}
-                  className={INPUT} />
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Amount</label>
+                <div className="flex gap-2">
+                  <input type="number" placeholder="0" value={form.amount}
+                    onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                    className={INPUT} />
+                  <select value={form.currency}
+                    onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value as "USD" | "TWD" }))}
+                    className="bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-2 py-2 text-sm text-zinc-900 dark:text-zinc-100 w-20 shrink-0">
+                    <option value="USD">USD</option>
+                    <option value="TWD">TWD</option>
+                  </select>
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Notes (optional)</label>
@@ -293,7 +326,10 @@ export default function NetWorthPage() {
                         ? "text-emerald-600 dark:text-emerald-400"
                         : "text-red-500 dark:text-red-400"
                     }`}>
-                      {isAsset(item.category) ? "" : "−"}{fmt(item.amountUSD)}
+                      <p>{isAsset(item.category) ? "" : "−"}{item.currency === "TWD" ? fmtTWD(item.amountUSD) : fmt(item.amountUSD)}</p>
+                      {item.currency === "TWD" && (
+                        <p className="text-xs text-zinc-400 dark:text-zinc-500">≈ {fmt(item.amountUSD / fxRate)}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-zinc-400 dark:text-zinc-500">{item.updatedAt}</td>
                     <td className="px-4 py-3 text-right">

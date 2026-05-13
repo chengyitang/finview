@@ -8,6 +8,12 @@ const features = [
     icon: "📊",
   },
   {
+    title: "Crypto",
+    href: "/investment/crypto",
+    desc: "Track crypto holdings across BTC, ETH, SOL, and more. Live prices via CoinGecko. P&L automatically flows into Net Worth.",
+    icon: "₿",
+  },
+  {
     title: "RSU",
     href: "/investment/rsu",
     desc: "Calculate vested and unvested RSU value for Amazon, Google, Meta, NVIDIA, and more. Supports custom companies and multiple grants.",
