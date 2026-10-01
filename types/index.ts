@@ -64,6 +64,7 @@ export interface ActivePosition {
   marketValue: number;
   totalDividends: number;
   capitalGain: number;
+  realizedPL: number;
   totalReturn: number;
   adjustedAvgCost: number;
   totalPct: number;
@@ -135,10 +136,27 @@ export interface RetirementAccount {
   id: string;
   type: "401k" | "HSA" | "IRA" | "Roth IRA";
   year: number;
+  month?: number;  // 1-12; undefined = annual entry
   contributions: number;
   employerMatch?: number;
   balance: number;
   notes: string;
+}
+
+// Vehicle types
+export interface VehicleOffer {
+  id: string;
+  date: string;
+  source: string;
+  amountUSD: number;
+}
+
+export interface VehicleEntry {
+  id: string;
+  label: string;
+  purchasePrice: number;
+  purchaseDate: string;
+  offers: VehicleOffer[];
 }
 
 // Net Worth types

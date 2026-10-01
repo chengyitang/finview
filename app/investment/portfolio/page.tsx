@@ -8,7 +8,7 @@ import KPICard from "@/components/ui/KPICard";
 import { useToast, ToastContainer } from "@/components/ui/Toast";
 import {
   PieChart, Pie, Cell, Tooltip, LineChart, Line, CartesianGrid, XAxis, YAxis,
-  ResponsiveContainer,
+  ResponsiveContainer, ReferenceLine,
 } from "recharts";
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -50,6 +50,9 @@ export default function PortfolioPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [assetsHistory, setAssetsHistory] = useState<Record<string, Record<number, number>>>({});
+  const [chartPos, setChartPos] = useState<ActivePosition | null>(null);
+  const [chartPoints, setChartPoints] = useState<{ date: string; close: number }[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
     setTransactions(loadTransactions());
@@ -219,6 +222,12 @@ export default function PortfolioPage() {
     fetchHistoricalAssets(transactions);
   }, [loading, transactions, fetchHistoricalAssets]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setChartPos(null); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   function startEditTx(tx: Transaction) {
     setEditingTxId(tx.id);
     setShowForm(true);
@@ -236,6 +245,20 @@ export default function PortfolioPage() {
   function cancelEditTx() {
     setEditingTxId(null);
     setForm(EMPTY_FORM);
+  }
+
+  async function openChart(p: ActivePosition) {
+    setChartPos(p);
+    setChartPoints([]);
+    setChartLoading(true);
+    try {
+      const res = await fetch(`/api/stock/history?ticker=${encodeURIComponent(p.symbol)}`);
+      const data = await res.json();
+      setChartPoints(data.points ?? []);
+    } catch {
+      // leave empty
+    }
+    setChartLoading(false);
   }
 
   function addTransaction() {
@@ -290,6 +313,171 @@ export default function PortfolioPage() {
     a.download = `finview-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function generateReport() {
+    const totalMktValue = active.reduce((s, p) => s + p.marketValue, 0);
+    if (totalMktValue === 0) {
+      alert("No portfolio data to generate a report. Make sure prices are loaded.");
+      return;
+    }
+    const cur = displayCurrency === "TWD" ? "NT$" : "$";
+    const reportDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const totalCapGain = active.reduce((s, p) => s + p.capitalGain, 0);
+    const totalDivs = active.reduce((s, p) => s + p.totalDividends, 0) + closed.reduce((s, p) => s + p.totalDividends, 0);
+    const totalCost = active.reduce((s, p) => s + p.avgCost * p.shares, 0);
+    const blendedReturn = totalCost > 0 ? (totalCapGain / totalCost) * 100 : 0;
+
+    const alloc = [...active]
+      .map((p) => ({ ...p, allocPct: (p.marketValue / totalMktValue) * 100 }))
+      .sort((a, b) => b.marketValue - a.marketValue);
+
+    const usValue = active.filter((p) => p.currency === "USD").reduce((s, p) => s + p.marketValue, 0);
+    const twValue = active.filter((p) => p.currency === "TWD").reduce((s, p) => s + p.marketValue, 0);
+    const usPct = (usValue / totalMktValue) * 100;
+    const twPct = (twValue / totalMktValue) * 100;
+
+    const byReturn = [...alloc].sort((a, b) => b.totalPct - a.totalPct);
+    const best = byReturn.filter((p) => p.totalPct > 0).slice(0, 3);
+    const worst = byReturn.filter((p) => p.totalPct < 0).reverse().slice(0, 3);
+
+    // Auto-generated observations
+    const obs: string[] = [];
+    const top = alloc[0];
+    if (top && top.allocPct > 30) obs.push(`⚠️ <strong>Concentration risk:</strong> ${top.symbol} makes up ${top.allocPct.toFixed(1)}% of your portfolio — a single stock drawdown could significantly impact overall performance.`);
+    if (alloc.length <= 3) obs.push(`⚠️ <strong>Low diversification:</strong> Only ${alloc.length} active position${alloc.length !== 1 ? "s" : ""}. A broader spread across sectors or markets may reduce single-stock risk.`);
+    if (alloc.length >= 10) obs.push(`✓ <strong>Well diversified:</strong> ${alloc.length} positions across your portfolio.`);
+    if (usPct > 0 && twPct > 0) obs.push(`✓ <strong>Cross-market exposure:</strong> Portfolio spans US (${usPct.toFixed(1)}%) and TW (${twPct.toFixed(1)}%) markets, providing geographic diversification.`);
+    else if (usPct >= 99) obs.push(`ℹ️ <strong>US-only portfolio:</strong> 100% US equities. Consider whether international exposure fits your strategy.`);
+    else if (twPct >= 99) obs.push(`ℹ️ <strong>TW-only portfolio:</strong> 100% Taiwan equities. Consider whether international exposure fits your strategy.`);
+    if (blendedReturn >= 20) obs.push(`✓ <strong>Strong performance:</strong> Overall portfolio is up <strong>+${blendedReturn.toFixed(2)}%</strong> on average cost basis.`);
+    else if (blendedReturn < -10) obs.push(`⚠️ <strong>Significant unrealized losses:</strong> Portfolio is down <strong>${blendedReturn.toFixed(2)}%</strong>. Review whether fundamentals support holding each position.`);
+    else if (blendedReturn < 0) obs.push(`ℹ️ <strong>Slight underperformance:</strong> Portfolio is down ${blendedReturn.toFixed(2)}% on average cost. Monitor closely.`);
+    if (totalDivs > 0) obs.push(`✓ <strong>Dividend income:</strong> ${cur}${fmt2(totalDivs)} received — contributing to total return beyond capital gains.`);
+    if (closed.length > 0) {
+      const realizedPL = closed.reduce((s, p) => s + p.realizedPL, 0);
+      obs.push(`ℹ️ <strong>Closed positions:</strong> ${closed.length} realized position${closed.length !== 1 ? "s" : ""} with ${realizedPL >= 0 ? "+" : ""}${cur}${fmt2(realizedPL)} total realized P/L.`);
+    }
+    if (obs.length === 0) obs.push(`✓ Portfolio looks balanced. Continue monitoring your positions regularly.`);
+
+    const f = (n: number) => `${cur}${fmt2(Math.abs(n))}`;
+    const sign = (n: number) => n >= 0 ? "+" : "−";
+    const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+    const clr = (n: number) => n >= 0 ? "#16a34a" : "#dc2626";
+
+    const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Portfolio Report — ${reportDate}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:900px;margin:0 auto;padding:40px 32px;color:#111;font-size:14px;line-height:1.6}
+.print-btn{background:#2563eb;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:28px;font-weight:500}
+h1{font-size:26px;font-weight:700;margin-bottom:3px}
+.sub{color:#666;font-size:13px;margin-bottom:32px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+.kpi{background:#f8f8f8;border-radius:10px;padding:14px 16px}
+.kpi-l{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.kpi-v{font-size:19px;font-weight:700}
+.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px}
+.sc{background:#f0f4ff;border-radius:10px;padding:14px 16px}
+.sc-l{font-size:10px;font-weight:700;color:#5567a0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.sc-v{font-size:16px;font-weight:700;margin-bottom:1px}
+.sc-p{font-size:12px;color:#666}
+h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;border-bottom:1px solid #e5e5e5;padding-bottom:6px;margin:24px 0 12px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:7px 10px;background:#f3f4f6;font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.04em}
+th.r,td.r{text-align:right}
+td{padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:13px}
+td.m{font-family:'SF Mono','Fira Code',monospace;font-size:12px}
+.bar-bg{background:#e5e7eb;border-radius:3px;height:5px;margin-top:4px}
+.bar-f{background:#3b82f6;border-radius:3px;height:5px}
+.perf-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.obs{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px 18px}
+.obs p{margin:5px 0;font-size:13px}
+.foot{margin-top:40px;font-size:11px;color:#aaa;text-align:center}
+@media print{.print-btn{display:none!important}body{padding:16px}}
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+<h1>Portfolio Report</h1>
+<p class="sub">Generated ${reportDate} · ${displayCurrency} · Prices via Yahoo Finance</p>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-l">Market Value</div><div class="kpi-v">${cur}${fmt2(totalMktValue)}</div></div>
+  <div class="kpi"><div class="kpi-l">Capital Gain</div><div class="kpi-v" style="color:${clr(totalCapGain)}">${sign(totalCapGain)}${f(totalCapGain)}</div></div>
+  <div class="kpi"><div class="kpi-l">Blended Return</div><div class="kpi-v" style="color:${clr(blendedReturn)}">${pct(blendedReturn)}</div></div>
+  <div class="kpi"><div class="kpi-l">Positions</div><div class="kpi-v">${active.length}${closed.length > 0 ? ` <span style="font-size:13px;color:#888">+${closed.length} closed</span>` : ""}</div></div>
+</div>
+
+${usPct > 0 || twPct > 0 ? `<div class="split">
+  ${usPct > 0 ? `<div class="sc"><div class="sc-l">🇺🇸 US Market</div><div class="sc-v">${cur}${fmt2(usValue)}</div><div class="sc-p">${usPct.toFixed(1)}% of portfolio</div></div>` : ""}
+  ${twPct > 0 ? `<div class="sc"><div class="sc-l">🇹🇼 TW Market</div><div class="sc-v">${cur}${fmt2(twValue)}</div><div class="sc-p">${twPct.toFixed(1)}% of portfolio</div></div>` : ""}
+  ${totalDivs > 0 ? `<div class="sc"><div class="sc-l">Total Dividends</div><div class="sc-v" style="color:#16a34a">+${cur}${fmt2(totalDivs)}</div><div class="sc-p">across all positions</div></div>` : ""}
+</div>` : ""}
+
+<h2>Asset Allocation</h2>
+<table>
+  <thead><tr>
+    <th>Symbol</th><th>Name</th><th class="r">Shares</th>
+    <th class="r">Avg Cost</th><th class="r">Price</th>
+    <th class="r">Market Value</th><th class="r">Cap Gain</th><th class="r">Return %</th>
+    <th>Allocation</th>
+  </tr></thead>
+  <tbody>
+  ${alloc.map((p) => `<tr>
+    <td><strong>${p.symbol}</strong></td>
+    <td style="color:#666;font-size:12px">${p.stockName || "—"}</td>
+    <td class="r m">${p.shares.toFixed(p.shares % 1 === 0 ? 0 : 2)}</td>
+    <td class="r m">${cur}${fmt2(p.avgCost)}</td>
+    <td class="r m">${cur}${fmt2(p.currentPrice)}</td>
+    <td class="r m">${cur}${fmt2(p.marketValue)}</td>
+    <td class="r m" style="color:${clr(p.capitalGain)}">${sign(p.capitalGain)}${f(p.capitalGain)}</td>
+    <td class="r m" style="color:${clr(p.totalPct)}">${pct(p.totalPct)}</td>
+    <td style="width:90px;padding-left:12px">
+      <span style="font-size:11px;color:#444">${p.allocPct.toFixed(1)}%</span>
+      <div class="bar-bg"><div class="bar-f" style="width:${Math.min(p.allocPct, 100).toFixed(1)}%"></div></div>
+    </td>
+  </tr>`).join("")}
+  </tbody>
+</table>
+
+${best.length > 0 || worst.length > 0 ? `<h2>Performance Highlights</h2>
+<div class="perf-grid">
+  ${best.length > 0 ? `<div>
+    <div style="font-size:12px;font-weight:600;color:#16a34a;margin-bottom:8px">▲ Top Performers</div>
+    <table><thead><tr><th>Symbol</th><th class="r">Return %</th><th class="r">Cap Gain</th></tr></thead><tbody>
+    ${best.map((p) => `<tr><td><strong>${p.symbol}</strong></td><td class="r m" style="color:#16a34a">+${p.totalPct.toFixed(2)}%</td><td class="r m" style="color:#16a34a">+${f(p.capitalGain)}</td></tr>`).join("")}
+    </tbody></table>
+  </div>` : ""}
+  ${worst.length > 0 ? `<div>
+    <div style="font-size:12px;font-weight:600;color:#dc2626;margin-bottom:8px">▼ Underperformers</div>
+    <table><thead><tr><th>Symbol</th><th class="r">Return %</th><th class="r">Cap Gain</th></tr></thead><tbody>
+    ${worst.map((p) => `<tr><td><strong>${p.symbol}</strong></td><td class="r m" style="color:#dc2626">${p.totalPct.toFixed(2)}%</td><td class="r m" style="color:#dc2626">−${f(p.capitalGain)}</td></tr>`).join("")}
+    </tbody></table>
+  </div>` : ""}
+</div>` : ""}
+
+${closed.length > 0 ? `<h2>Closed Positions</h2>
+<table>
+  <thead><tr><th>Symbol</th><th class="r">Invested</th><th class="r">Realized P/L</th><th class="r">Dividends</th><th class="r">Return %</th></tr></thead>
+  <tbody>
+  ${closed.map((p) => `<tr>
+    <td><strong>${p.symbol}</strong>${p.stockName ? `<span style="color:#888;font-size:11px;margin-left:6px">${p.stockName}</span>` : ""}</td>
+    <td class="r m">${cur}${fmt2(p.totalInvested)}</td>
+    <td class="r m" style="color:${clr(p.realizedPL)}">${sign(p.realizedPL)}${f(p.realizedPL)}</td>
+    <td class="r m">${p.totalDividends > 0 ? `+${f(p.totalDividends)}` : "—"}</td>
+    <td class="r m" style="color:${clr(p.totalPct)}">${pct(p.totalPct)}</td>
+  </tr>`).join("")}
+  </tbody>
+</table>` : ""}
+
+<h2>Analysis &amp; Observations</h2>
+<div class="obs">${obs.map((o) => `<p>${o}</p>`).join("")}</div>
+
+<div class="foot">FinView · Portfolio Report · ${reportDate}</div>
+</body></html>`;
+
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); }
   }
 
   function parseCSVLine(line: string): string[] {
@@ -520,7 +708,7 @@ export default function PortfolioPage() {
                   <XAxis dataKey="year" tick={{ fill: "#71717a", fontSize: 12 }} />
                   <YAxis tick={{ fill: "#71717a", fontSize: 12 }}
                     tickFormatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${(v / 1_000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v) => [`${cSym}${fmt2(Number(v))}`, "Total Assets"]} />
+                  <Tooltip formatter={(v) => [`${cSym}${fmt2(Number(v))}`, "Total Assets"]} labelStyle={{ color: "#111" }} />
                   <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2}
                     dot={{ fill: "#3b82f6", r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>
@@ -542,6 +730,7 @@ export default function PortfolioPage() {
                       const pct = pieTotalValue > 0 ? ((Number(value) / pieTotalValue) * 100).toFixed(1) : "0.0";
                       return [`${pct}%`, name];
                     }}
+                    labelStyle={{ color: "#111" }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -653,6 +842,10 @@ export default function PortfolioPage() {
               className="pl-7 pr-3 py-1 text-sm bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 w-32 focus:w-44 transition-all focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
+          <button onClick={generateReport}
+            className="px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+            Report
+          </button>
           <button onClick={exportCSV}
             className="px-3 py-1 rounded-lg text-sm border border-gray-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
             Export
@@ -667,7 +860,7 @@ export default function PortfolioPage() {
       {/* Active Positions */}
       {activeTab === "active" && (
         <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-x-auto">
-          <table className="w-full text-sm min-w-[700px]">
+          <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="border-b border-gray-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 text-xs">
                 <th className="text-left px-4 py-3">Symbol</th>
@@ -676,7 +869,7 @@ export default function PortfolioPage() {
                 <th className="text-right px-4 py-3">Price</th>
                 <th className="text-right px-4 py-3">Mkt Value</th>
                 <th className="text-right px-4 py-3">Cap Gain</th>
-                <th className="text-right px-4 py-3">Total Return</th>
+                <th className="text-right px-4 py-3">Realized P/L</th>
                 <th className="text-right px-4 py-3">Return %</th>
               </tr>
             </thead>
@@ -688,9 +881,12 @@ export default function PortfolioPage() {
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">{q ? `No results for "${searchQuery}".` : `No active positions${marketFilter !== "all" ? ` in ${marketFilter}` : ""}. Add transactions to get started.`}</td></tr>
               )}
               {!loading && searchedActive.map((p) => (
-                <tr key={p.symbol} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
+                <tr key={p.symbol} onClick={() => openChart(p)} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30 cursor-pointer">
                   <td className="px-4 py-3">
-                    <p className="font-medium">{p.symbol}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium">{p.symbol}</p>
+                      <span className="text-zinc-300 dark:text-zinc-600 text-xs">↗</span>
+                    </div>
                     <p className="text-xs text-zinc-400 dark:text-zinc-500">{p.stockName}</p>
                   </td>
                   <td className="px-4 py-3 text-right font-mono">{p.shares.toFixed(p.shares % 1 === 0 ? 0 : 2)}</td>
@@ -700,8 +896,8 @@ export default function PortfolioPage() {
                   <td className={`px-4 py-3 text-right font-mono ${p.capitalGain >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                     {cSym}{fmt2(p.capitalGain)}
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono ${p.totalReturn >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
-                    {cSym}{fmt2(p.totalReturn)}
+                  <td className={`px-4 py-3 text-right font-mono ${p.realizedPL === 0 ? "text-zinc-400 dark:text-zinc-600" : p.realizedPL > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                    {p.realizedPL === 0 ? "—" : `${cSym}${fmt2(p.realizedPL)}`}
                   </td>
                   <td className={`px-4 py-3 text-right font-mono ${p.totalPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                     {fmtPct(p.totalPct)}
@@ -711,16 +907,18 @@ export default function PortfolioPage() {
               {!loading && searchedActive.length > 1 && (() => {
                 const totMktVal = searchedActive.reduce((s, p) => s + p.marketValue, 0);
                 const totCapGain = searchedActive.reduce((s, p) => s + p.capitalGain, 0);
-                const totReturn = searchedActive.reduce((s, p) => s + p.totalReturn, 0);
+                const totRealized = searchedActive.reduce((s, p) => s + p.realizedPL, 0);
                 const totCost = searchedActive.reduce((s, p) => s + p.avgCost * p.shares, 0);
-                const blendedPct = totCost > 0 ? (totReturn / totCost) * 100 : 0;
+                const blendedPct = totCost > 0 ? (totCapGain / totCost) * 100 : 0;
                 return (
                   <tr className="border-t-2 border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/50 font-semibold">
                     <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">TOTAL</td>
                     <td colSpan={3} />
                     <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(totMktVal)}</td>
                     <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(totCapGain)}</td>
-                    <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(totReturn)}</td>
+                    <td className={`px-4 py-3 text-right font-mono ${totRealized === 0 ? "text-zinc-400 dark:text-zinc-600" : totRealized > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                      {totRealized === 0 ? "—" : `${cSym}${fmt2(totRealized)}`}
+                    </td>
                     <td className={`px-4 py-3 text-right font-mono ${blendedPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {fmtPct(blendedPct)}
                     </td>
@@ -749,25 +947,50 @@ export default function PortfolioPage() {
             <tbody>
               {searchedClosed.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500">{q ? `No results for "${searchQuery}".` : `No closed positions${marketFilter !== "all" ? ` in ${marketFilter}` : ""}.`}</td></tr>
-              ) : searchedClosed.map((p) => (
-                <tr key={p.symbol} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{p.symbol}</p>
-                    <p className="text-xs text-zinc-400 dark:text-zinc-500">{p.stockName}</p>
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(p.totalInvested)}</td>
-                  <td className={`px-4 py-3 text-right font-mono ${p.realizedPL >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
-                    {cSym}{fmt2(p.realizedPL)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">{cSym}{fmt2(p.totalDividends)}</td>
-                  <td className={`px-4 py-3 text-right font-mono ${p.totalReturn >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
-                    {cSym}{fmt2(p.totalReturn)}
-                  </td>
-                  <td className={`px-4 py-3 text-right font-mono ${p.totalPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
-                    {fmtPct(p.totalPct)}
-                  </td>
-                </tr>
-              ))}
+              ) : (<>
+                {searchedClosed.map((p) => (
+                  <tr key={p.symbol} className="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30">
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{p.symbol}</p>
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500">{p.stockName}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(p.totalInvested)}</td>
+                    <td className={`px-4 py-3 text-right font-mono ${p.realizedPL >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                      {cSym}{fmt2(p.realizedPL)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">{cSym}{fmt2(p.totalDividends)}</td>
+                    <td className={`px-4 py-3 text-right font-mono ${p.totalReturn >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                      {cSym}{fmt2(p.totalReturn)}
+                    </td>
+                    <td className={`px-4 py-3 text-right font-mono ${p.totalPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                      {fmtPct(p.totalPct)}
+                    </td>
+                  </tr>
+                ))}
+                {searchedClosed.length > 1 && (() => {
+                  const totInvested = searchedClosed.reduce((s, p) => s + p.totalInvested, 0);
+                  const totRealized = searchedClosed.reduce((s, p) => s + p.realizedPL, 0);
+                  const totDivs     = searchedClosed.reduce((s, p) => s + p.totalDividends, 0);
+                  const totReturn   = searchedClosed.reduce((s, p) => s + p.totalReturn, 0);
+                  const blendedPct  = totInvested > 0 ? (totRealized / totInvested) * 100 : 0;
+                  return (
+                    <tr className="border-t-2 border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/50 font-semibold">
+                      <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">TOTAL</td>
+                      <td className="px-4 py-3 text-right font-mono">{cSym}{fmt2(totInvested)}</td>
+                      <td className={`px-4 py-3 text-right font-mono ${totRealized >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                        {cSym}{fmt2(totRealized)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">{cSym}{fmt2(totDivs)}</td>
+                      <td className={`px-4 py-3 text-right font-mono ${totReturn >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                        {cSym}{fmt2(totReturn)}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-mono ${blendedPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                        {fmtPct(blendedPct)}
+                      </td>
+                    </tr>
+                  );
+                })()}
+              </>)}
             </tbody>
           </table>
         </div>
@@ -822,6 +1045,93 @@ export default function PortfolioPage() {
       )}
     </div>
     <ToastContainer toasts={toasts} dismiss={dismiss} />
+
+    {/* Price chart modal */}
+    {chartPos && (
+      <div
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+        onClick={() => setChartPos(null)}
+      >
+        <div
+          className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xl p-5 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">{chartPos.symbol}</h2>
+                <span className={`text-sm font-medium ${(changes[chartPos.symbol] ?? 0) >= 0 ? "text-emerald-500" : "text-red-400"}`}>
+                  {fmtPct(changes[chartPos.symbol] ?? 0)} today
+                </span>
+              </div>
+              {chartPos.stockName && <p className="text-xs text-zinc-400 mt-0.5">{chartPos.stockName}</p>}
+              <p className="text-2xl font-semibold mt-1">
+                {chartPos.currency === "TWD" ? "NT$" : "$"}{fmt2(chartPos.currentPrice)}
+              </p>
+            </div>
+            <button onClick={() => setChartPos(null)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 text-lg leading-none">✕</button>
+          </div>
+
+          {chartLoading ? (
+            <div className="h-48 flex items-center justify-center text-zinc-400 text-sm">Loading chart...</div>
+          ) : chartPoints.length === 0 ? (
+            <div className="h-48 flex items-center justify-center text-zinc-400 text-sm">No chart data available</div>
+          ) : (() => {
+            const cur = chartPos.currency === "TWD" ? "NT$" : "$";
+            const allValues = chartPoints.map((p) => p.close).concat(chartPos.avgCost);
+            const minVal = Math.min(...allValues) * 0.98;
+            const maxVal = Math.max(...allValues) * 1.02;
+            return (
+              <>
+                <p className="text-xs text-zinc-400 mb-2">6-month price chart</p>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={chartPoints}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" className="dark:stroke-zinc-700" />
+                    <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} tickFormatter={(d) => d.slice(5)} interval="preserveStartEnd" />
+                    <YAxis
+                      tick={{ fill: "#71717a", fontSize: 10 }}
+                      tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : Number(v).toFixed(0)}
+                      domain={[minVal, maxVal]}
+                      width={48}
+                    />
+                    <Tooltip
+                      formatter={(v) => [`${cur}${fmt2(Number(v))}`, "Close"]}
+                      labelStyle={{ color: "#111" }}
+                      contentStyle={{ fontSize: 12 }}
+                    />
+                    <ReferenceLine
+                      y={chartPos.avgCost}
+                      stroke="#f59e0b"
+                      strokeDasharray="4 3"
+                      strokeWidth={1.5}
+                      label={{ value: `Avg ${cur}${fmt2(chartPos.avgCost)}`, position: "insideTopRight", fontSize: 10, fill: "#f59e0b" }}
+                    />
+                    <Line type="monotone" dataKey="close" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#10b981" }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </>
+            );
+          })()}
+
+          <div className="mt-4 grid grid-cols-3 gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+            <div className="text-center">
+              <p className="text-xs text-zinc-400">Avg Cost</p>
+              <p className="text-sm font-semibold mt-0.5">{chartPos.currency === "TWD" ? "NT$" : "$"}{fmt2(chartPos.avgCost)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-zinc-400">Shares</p>
+              <p className="text-sm font-semibold mt-0.5">{chartPos.shares.toFixed(chartPos.shares % 1 === 0 ? 0 : 2)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-zinc-400">Cap Gain</p>
+              <p className={`text-sm font-semibold mt-0.5 ${chartPos.capitalGain >= 0 ? "text-emerald-500" : "text-red-400"}`}>
+                {chartPos.capitalGain >= 0 ? "+" : ""}{chartPos.currency === "TWD" ? "NT$" : "$"}{fmt2(Math.abs(chartPos.capitalGain))}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }

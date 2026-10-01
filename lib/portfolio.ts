@@ -94,6 +94,7 @@ export function aggregatePortfolio(
       const currPriceNative = prices[symbol] ?? 0;
       const marketValueNative = currentShares * currPriceNative;
       const capitalGainNative = (currPriceNative - avgCostNative) * currentShares;
+      const realizedPLNative = (sumCashFlowsNative - dividendsNative) + runningCostNative;
       const totalReturnNative = marketValueNative + sumCashFlowsNative;
       const netInvestedNative = totalBuyCostNative - totalSellProceedsNative - dividendsNative;
       const adjAvgCostNative = netInvestedNative / currentShares;
@@ -109,13 +110,15 @@ export function aggregatePortfolio(
         marketValue: marketValueNative * conversionRate,
         totalDividends: dividendsNative * conversionRate,
         capitalGain: capitalGainNative * conversionRate,
+        realizedPL: realizedPLNative * conversionRate,
         totalReturn: totalReturnNative * conversionRate,
         adjustedAvgCost: adjAvgCostNative * conversionRate,
         totalPct,
       });
     } else if (totalBuyShares > 0 || dividendsNative > 0) {
       const totalReturnNative = sumCashFlowsNative;
-      const totalPct = totalBuyCostNative > 0 ? (totalReturnNative / totalBuyCostNative) * 100 : 0;
+      const realizedPLNative = totalReturnNative - dividendsNative;
+      const totalPct = totalBuyCostNative > 0 ? (realizedPLNative / totalBuyCostNative) * 100 : 0;
 
       closed.push({
         symbol,

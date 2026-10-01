@@ -49,7 +49,7 @@ export default function Sidebar() {
       <aside
         className={`
           fixed lg:relative top-12 lg:top-auto z-40 lg:z-auto
-          h-[calc(100dvh-3rem)] lg:min-h-0
+          h-[calc(100dvh-3rem)] lg:h-full
           flex flex-col shrink-0
           bg-white dark:bg-zinc-900 border-r border-gray-200 dark:border-zinc-800
           transition-all duration-200

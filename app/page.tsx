@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useSession, signIn } from "next-auth/react";
 
 const sections = [
@@ -15,8 +16,100 @@ const sections = [
   { title: "RSU", href: "/investment/rsu", desc: "Calculate vested and unvested RSU value across multiple grants and companies.", icon: "📈", color: "border-pink-600 dark:border-pink-700" },
 ];
 
+const HOW_IT_WORKS = [
+  {
+    title: "Stock Portfolio",
+    items: [
+      { label: "Cost basis", detail: "Weighted Average (WAVG) — every new buy blends purchase price + fees into the running average. Subsequent buys raise or lower the avg proportionally." },
+      { label: "Sells", detail: "Reduce the remaining cost basis proportionally (WAVG cost × shares sold). When all shares are sold the position fully closes and the cost resets to zero, so a future rebuy starts a brand-new cost cycle." },
+      { label: "Dividends", detail: "Tracked separately and improve the adjusted avg cost, but do not change the raw cost basis or the Capital Gain figure." },
+      { label: "Taiwan stocks", detail: "Pure-numeric tickers automatically get a .TW suffix. Prices are fetched in TWD and divided by the live USD/TWD rate so every position can be viewed in either currency." },
+      { label: "Amazon RSUs", detail: "Uses a 30-day trailing average price — not the live spot — anchored to the last Friday before the 15th of the prior month (OKX-style reference date)." },
+    ],
+  },
+  {
+    title: "Crypto",
+    items: [
+      { label: "Cost basis", detail: "Same WAVG algorithm as stocks, computed from your imported OKX spot fills. Fees are included in cost. Sell-all resets the cycle." },
+      { label: "All-time P&L", detail: "OKX live balance is the authoritative quantity. P&L = (OKX balance × WAVG avgCost from fills) subtracted from OKX market value. Only coins with fill history have a non-zero gain." },
+      { label: "Coins with no fills", detail: "Deposits and stablecoins (USDG, USDT…) have no fill records. They contribute 0 to the gain numerator but their current value is added to the cost denominator, so the return % correctly reflects your full capital deployed." },
+      { label: "Return %", detail: "Total gain ÷ total cost, where total cost = (fills-based cost basis for traded coins) + (current market value for coins with no fills)." },
+      { label: "24h Change", detail: "Sum of (balance × price change) for each coin using the 24h open price from OKX market tickers. Represents today's unrealised dollar move." },
+      { label: "Data source", detail: "Live balances and prices via OKX API (us.okx.com). Historical fills paginated from fills-history (up to 3 years) and fills (last 3 months), deduplicated by tradeId." },
+    ],
+  },
+  {
+    title: "Net Worth",
+    items: [
+      { label: "Formula", detail: "Net Worth = Total Assets − Total Liabilities." },
+      { label: "Auto-imported values", detail: "Stock portfolio market value, crypto OKX balance, and vested RSU value are read automatically from those modules — no double entry." },
+      { label: "Manual entries", detail: "Bank accounts, real estate, vehicles, loans, credit cards, etc. Each entry stores the amount in USD or TWD (converted at the live rate)." },
+      { label: "Trend chart", detail: "Deduplicates to one snapshot per month (the latest entry for that month) so multiple updates in the same month don't create duplicate data points." },
+    ],
+  },
+  {
+    title: "RSU",
+    items: [
+      { label: "Vesting schedule", detail: "Computed from grant date + each company's tranche schedule (percentage at each monthsFromGrant milestone). Built-in schedules for AMZN, GOOGL, META, NVDA, NFLX, MSFT, AAPL." },
+      { label: "Valuation", detail: "Vested shares × current spot price. Unvested shares × spot price (or trailing avg for Amazon). Total RSU value flows into Net Worth automatically." },
+      { label: "Amazon reference date", detail: "The last Friday that falls before the 15th of the prior calendar month. Amazon uses this date's 30-day trailing average price for RSU valuations instead of the live quote." },
+      { label: "Custom companies", detail: "Add any private or public company with a custom vesting tranche schedule. Private companies use a manually entered share price." },
+    ],
+  },
+  {
+    title: "Expenses",
+    items: [
+      { label: "Tracking", detail: "Every expense entry has a year, month, category, and optional sub-category. The monthly chart aggregates entries by month." },
+      { label: "Export report", detail: "Export any month range as Markdown (summaries, category/subcategory breakdowns, monthly trend, full ledger — ready to paste into an AI) or raw CSV. Download or copy to clipboard." },
+    ],
+  },
+  {
+    title: "Retirement Accounts",
+    items: [
+      { label: "Entries", detail: "Each record stores contributions, employer match (401k only), and end-of-period balance. Entries can be monthly or annual." },
+      { label: "Contribution limit", detail: "2025 limits displayed as reference: 401(k) $23,500 · HSA $4,300 · IRA $7,000. Not enforced — it's a reminder only." },
+      { label: "KPIs", detail: "Current Balance = most recent entry's balance. This Year Contributions = sum of all entries for the current year. This Month = the entry matching the current month, if any." },
+    ],
+  },
+  {
+    title: "Data & Privacy",
+    items: [
+      { label: "Storage", detail: "All data lives in your browser's localStorage under fv_* keys. Nothing is sent to any server by default." },
+      { label: "Google Drive sync", detail: "Optional. When signed in, data is backed up to a private file in your own Google Drive. Only you can access it. Sync triggers automatically on every save." },
+      { label: "OKX credentials", detail: "API key, secret, and passphrase are stored in localStorage only and are intentionally excluded from the Drive backup. Use a read-only OKX API key with no trade or withdraw permissions." },
+      { label: "Currency", detail: "A live USD/TWD rate is fetched from Yahoo Finance on pages that need it (portfolio, net worth). A fallback rate of 30.0 is used if the request fails." },
+    ],
+  },
+];
+
+function AccordionSection({ title, items }: { title: string; items: { label: string; detail: string }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-5 py-3.5 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors text-left"
+      >
+        <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">{title}</span>
+        <span className="text-zinc-400 text-xs ml-4 flex-shrink-0">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="px-5 pb-5 pt-3 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
+          {items.map((item) => (
+            <div key={item.label} className="flex gap-3">
+              <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 w-40 flex-shrink-0 pt-0.5">{item.label}</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{item.detail}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
+  const [showDocs, setShowDocs] = useState(false);
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto">
@@ -75,6 +168,28 @@ export default function DashboardPage() {
             <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">{s.desc}</p>
           </Link>
         ))}
+      </div>
+
+      {/* Calculation reference */}
+      <div className="mt-10">
+        <button
+          onClick={() => setShowDocs(!showDocs)}
+          className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors mb-4"
+        >
+          <span className="text-base">{showDocs ? "▼" : "▶"}</span>
+          How calculations work
+        </button>
+
+        {showDocs && (
+          <div className="space-y-2">
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
+              Reference guide for every formula and data source used across FinView.
+            </p>
+            {HOW_IT_WORKS.map((section) => (
+              <AccordionSection key={section.title} title={section.title} items={section.items} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

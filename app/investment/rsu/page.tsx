@@ -85,6 +85,7 @@ function PriceHistoryChart({
           <Tooltip
             formatter={(v) => [`$${fmt2(Number(v))}`, "Close"]}
             labelFormatter={(l) => String(l).slice(0, 7)}
+            labelStyle={{ color: "#111" }}
           />
           <Line type="monotone" dataKey="close" stroke="#3b82f6" strokeWidth={2} dot={false} />
           {grantMonths.filter(inRange).map((ym) => (

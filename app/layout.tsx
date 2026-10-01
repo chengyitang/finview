@@ -7,6 +7,7 @@ import ThemeProvider from "@/components/layout/ThemeProvider";
 import SessionProviderWrapper from "@/components/layout/SessionProviderWrapper";
 import DriveSync from "@/components/layout/DriveSync";
 import { LayoutProvider } from "@/components/layout/LayoutContext";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="min-h-full bg-gray-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 flex flex-col">
+      <body className="h-full bg-gray-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 flex flex-col">
         <SessionProviderWrapper>
           <DriveSync>
             <ThemeProvider>
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ThemeProvider>
           </DriveSync>
         </SessionProviderWrapper>
+        <Analytics />
       </body>
     </html>
   );

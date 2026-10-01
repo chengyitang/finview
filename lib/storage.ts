@@ -1,4 +1,4 @@
-import { Grant, Company, Transaction, IncomeEntry, TaxEntry, RetirementAccount, ExpenseEntry, NetWorthItem, NetWorthSnapshot, CryptoTransaction } from "@/types";
+import { Grant, Company, Transaction, IncomeEntry, TaxEntry, RetirementAccount, ExpenseEntry, NetWorthItem, NetWorthSnapshot, CryptoTransaction, VehicleEntry } from "@/types";
 
 // Sync hook — set by DriveSync component at runtime to avoid circular imports
 let _triggerSync: (() => void) | null = null;
@@ -51,6 +51,10 @@ export const saveCryptoTransactions = (v: CryptoTransaction[]): void => { save("
 export const loadCryptoSnapshot = (): { valueUSD: number; updatedAt: string } | null => load("fv_crypto_snapshot", null);
 export const saveCryptoSnapshot = (v: { valueUSD: number; updatedAt: string }): void => save("fv_crypto_snapshot", v);
 
+// Vehicles
+export const loadVehicles = (): VehicleEntry[] => load("fv_vehicles", []);
+export const saveVehicles = (v: VehicleEntry[]): void => { save("fv_vehicles", v); triggerSync(); };
+
 // Net Worth
 export const loadNetWorthItems = (): NetWorthItem[] => load("fv_net_worth_items", []);
 export const saveNetWorthItems = (v: NetWorthItem[]): void => { save("fv_net_worth_items", v); triggerSync(); };
@@ -85,6 +89,7 @@ export function collectAll() {
     fv_expenses: loadExpenses(),
     fv_net_worth_items: loadNetWorthItems(),
     fv_net_worth_history: loadNetWorthHistory(),
+    fv_vehicles: loadVehicles(),
   };
 }
 
@@ -100,4 +105,5 @@ export function restoreAll(data: Partial<ReturnType<typeof collectAll>>) {
   if (data.fv_expenses) save("fv_expenses", data.fv_expenses);
   if (data.fv_net_worth_items) save("fv_net_worth_items", data.fv_net_worth_items);
   if (data.fv_net_worth_history) save("fv_net_worth_history", data.fv_net_worth_history);
+  if (data.fv_vehicles) save("fv_vehicles", data.fv_vehicles);
 }
