@@ -127,10 +127,18 @@ export default function NetWorthPage() {
     saveNetWorthItems(updated);
   }
 
-  const chartData = history.map((s) => ({
-    date: s.date.slice(0, 7), // YYYY-MM
-    value: s.netWorth,
-  }));
+  const byMonth: Record<string, NetWorthSnapshot> = {};
+  for (const s of history) {
+    const mo = s.date.slice(0, 7);
+    if (!byMonth[mo] || s.date > byMonth[mo].date) byMonth[mo] = s;
+  }
+  const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const chartData = Object.entries(byMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([mo, s]) => ({
+      date: `${MONTH_NAMES[parseInt(mo.slice(5)) - 1]} '${mo.slice(2, 4)}`,
+      value: s.netWorth,
+    }));
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto">
