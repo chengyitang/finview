@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { ExpenseEntry, ExpenseCategory } from "@/types";
-import { loadExpenses, saveExpenses, loadIncome } from "@/lib/storage";
+import { loadExpenses, saveExpenses, loadIncome, loadRetirement } from "@/lib/storage";
 import KPICard from "@/components/ui/KPICard";
+import { buildExpenseMarkdown, buildExpenseCSV, downloadFile, filterByRange, ymLabel, YearMonth } from "@/lib/expenseReport";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   Cell, ResponsiveContainer,
@@ -59,6 +60,11 @@ export default function ExpensesPage() {
   const [drillCat, setDrillCat] = useState<ExpenseCategory | null>(null);
   const [filterMonth, setFilterMonth] = useState<number>(0);
   const [page, setPage] = useState(1);
+  const [showExport, setShowExport] = useState(false);
+  const [exportFrom, setExportFrom] = useState<YearMonth>({ year: CURRENT_YEAR, month: 1 });
+  const [exportTo, setExportTo] = useState<YearMonth>({ year: CURRENT_YEAR, month: CURRENT_MONTH });
+  const [exportFormat, setExportFormat] = useState<"md" | "csv">("md");
+  const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({
     year: CURRENT_YEAR,
     month: CURRENT_MONTH,
@@ -127,6 +133,46 @@ export default function ExpensesPage() {
     }
   }
 
+  function setExportPreset(preset: "month" | "3m" | "12m" | "ytd" | "lastYear" | "all") {
+    const back = (n: number): YearMonth => {
+      const k = CURRENT_YEAR * 12 + (CURRENT_MONTH - 1) - n;
+      return { year: Math.floor(k / 12), month: (k % 12) + 1 };
+    };
+    const now = { year: CURRENT_YEAR, month: CURRENT_MONTH };
+    if (preset === "month") { setExportFrom(now); setExportTo(now); }
+    if (preset === "3m") { setExportFrom(back(2)); setExportTo(now); }
+    if (preset === "12m") { setExportFrom(back(11)); setExportTo(now); }
+    if (preset === "ytd") { setExportFrom({ year: CURRENT_YEAR, month: 1 }); setExportTo(now); }
+    if (preset === "lastYear") { setExportFrom({ year: CURRENT_YEAR - 1, month: 1 }); setExportTo({ year: CURRENT_YEAR - 1, month: 12 }); }
+    if (preset === "all" && entries.length > 0) {
+      const keys = entries.map((e) => e.year * 12 + (e.month - 1));
+      const lo = Math.min(...keys), hi = Math.max(...keys);
+      setExportFrom({ year: Math.floor(lo / 12), month: (lo % 12) + 1 });
+      setExportTo({ year: Math.floor(hi / 12), month: (hi % 12) + 1 });
+    }
+  }
+
+  function buildExport() {
+    return exportFormat === "md"
+      ? buildExpenseMarkdown({ entries, income: loadIncome(), from: exportFrom, to: exportTo })
+      : buildExpenseCSV({ entries, from: exportFrom, to: exportTo });
+  }
+
+  function exportFilename() {
+    const iso = (ym: YearMonth) => `${ym.year}-${String(ym.month).padStart(2, "0")}`;
+    return `finview-expenses-${iso(exportFrom)}_to_${iso(exportTo)}.${exportFormat}`;
+  }
+
+  function downloadExport() {
+    downloadFile(buildExport(), exportFilename(), exportFormat === "md" ? "text/markdown" : "text/csv");
+  }
+
+  async function copyExport() {
+    await navigator.clipboard.writeText(buildExport());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   function remove(id: string) {
     const updated = entries.filter((e) => e.id !== id);
     setEntries(updated);
@@ -152,7 +198,20 @@ export default function ExpensesPage() {
   const yearIncome = incomeEntries
     .filter((e) => e.year === filterYear)
     .reduce((s, e) => s + e.amountUSD, 0);
-  const savingsRate = yearIncome > 0 ? ((yearIncome - yearTotal) / yearIncome) * 100 : null;
+
+  // 401k + HSA contributions are savings that never reach take-home pay,
+  // so include them in the income base for an accurate savings rate.
+  const retirementEntries = loadRetirement().filter((e) => e.year === filterYear);
+  const year401k = retirementEntries
+    .filter((e) => e.type === "401k")
+    .reduce((s, e) => s + e.contributions + (e.employerMatch ?? 0), 0);
+  const yearHSA = retirementEntries
+    .filter((e) => e.type === "HSA")
+    .reduce((s, e) => s + e.contributions, 0);
+  const yearRetirement = year401k + yearHSA;
+
+  const totalIncome = yearIncome + yearRetirement;
+  const savingsRate = totalIncome > 0 ? ((totalIncome - yearTotal) / totalIncome) * 100 : null;
 
   const monthlyData = MONTHS.map((label, i) => ({
     label,
@@ -197,6 +256,10 @@ export default function ExpensesPage() {
       e.category.toLowerCase().includes(q)
     );
 
+  const exportRangeInvalid =
+    exportFrom.year * 12 + exportFrom.month > exportTo.year * 12 + exportTo.month;
+  const exportEntries = exportRangeInvalid ? [] : filterByRange(entries, exportFrom, exportTo);
+
   const PAGE_SIZE = 15;
   const totalPages = Math.max(1, Math.ceil(tableEntries.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -218,7 +281,9 @@ export default function ExpensesPage() {
           value={savingsRate !== null ? `${savingsRate.toFixed(1)}%` : "—"}
           positive={savingsRate !== null && savingsRate >= 20}
           negative={savingsRate !== null && savingsRate < 0}
-          sub={savingsRate !== null ? `${fmt(yearIncome)} income` : "Add income data"}
+          sub={savingsRate !== null
+            ? `${fmt(totalIncome)} income${yearRetirement > 0 ? ` (incl. ${fmt(yearRetirement)} 401k/HSA)` : ""}`
+            : "Add income data"}
         />
       </div>
 
@@ -235,7 +300,7 @@ export default function ExpensesPage() {
                   <XAxis dataKey="label" tick={{ fill: "#71717a", fontSize: 11 }} />
                   <YAxis tick={{ fill: "#71717a", fontSize: 11 }}
                     tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
-                  <Tooltip formatter={(v) => [fmt(Number(v)), "Spending"]} />
+                  <Tooltip formatter={(v) => [fmt(Number(v)), "Spending"]} labelStyle={{ color: "#111" }} />
                   <Bar dataKey="total" fill="#f43f5e" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -257,6 +322,7 @@ export default function ExpensesPage() {
                       const pct = pieTotalValue > 0 ? ((Number(value) / pieTotalValue) * 100).toFixed(1) : "0.0";
                       return [`${fmt(Number(value))} (${pct}%)`, name];
                     }}
+                    labelStyle={{ color: "#111" }}
                   />
                   <Bar dataKey="value" radius={[0, 3, 3, 0]}>
                     {pieData.map((entry, i) => (
@@ -302,7 +368,7 @@ export default function ExpensesPage() {
                 <XAxis dataKey="name" tick={{ fill: "#71717a", fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
                 <YAxis tick={{ fill: "#71717a", fontSize: 11 }}
                   tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
-                <Tooltip formatter={(v) => [fmt(Number(v)), "Amount"]} />
+                <Tooltip formatter={(v) => [fmt(Number(v)), "Amount"]} labelStyle={{ color: "#111" }} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {drillData.map((_, i) => (
                     <Cell key={i} fill={DRILL_COLORS[i % DRILL_COLORS.length]} />
@@ -396,6 +462,75 @@ export default function ExpensesPage() {
                   Cancel
                 </button>
               )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Export Report */}
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl mb-6 overflow-hidden">
+        <button
+          onClick={() => setShowExport(!showExport)}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+        >
+          <span className="font-semibold text-sm">Export Report</span>
+          <span className="text-zinc-400 text-xs">{showExport ? "▲" : "▼"}</span>
+        </button>
+        {showExport && (
+          <div className="px-5 pb-5 border-t border-gray-100 dark:border-zinc-800 pt-4">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+              Export expenses for a date range. Markdown includes summaries, category/subcategory breakdowns, monthly trends, and every transaction — ready to paste into an AI assistant for analysis.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {([
+                ["month", "This month"], ["3m", "Last 3 months"], ["12m", "Last 12 months"],
+                ["ytd", "Year to date"], ["lastYear", `${CURRENT_YEAR - 1}`], ["all", "All time"],
+              ] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setExportPreset(key)}
+                  className="px-3 py-1 text-xs font-medium rounded-full border border-gray-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {([["From", exportFrom, setExportFrom], ["To", exportTo, setExportTo]] as const).map(([label, ym, setYm]) => (
+                <div key={label} className="contents">
+                  <div>
+                    <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">{label} month</label>
+                    <select value={ym.month} onChange={(e) => setYm({ ...ym, month: +e.target.value })} className={INPUT}>
+                      {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">{label} year</label>
+                    <input type="number" value={ym.year} onChange={(e) => setYm({ ...ym, year: +e.target.value })} className={INPUT} />
+                  </div>
+                </div>
+              ))}
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Format</label>
+                <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as "md" | "csv")} className={INPUT}>
+                  <option value="md">Markdown (AI-ready)</option>
+                  <option value="csv">CSV (raw)</option>
+                </select>
+              </div>
+            </div>
+            {exportRangeInvalid ? (
+              <p className="text-xs text-red-500 mt-3">“From” must be on or before “To”.</p>
+            ) : (
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-3">
+                {ymLabel(exportFrom)} – {ymLabel(exportTo)} · {exportEntries.length} entr{exportEntries.length === 1 ? "y" : "ies"} · {fmt(exportEntries.reduce((s, e) => s + e.amountUSD, 0))}
+              </p>
+            )}
+            <div className="flex gap-2 mt-3">
+              <button onClick={downloadExport} disabled={exportRangeInvalid}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-default text-white px-4 py-2 rounded-lg text-sm font-medium">
+                Download
+              </button>
+              <button onClick={copyExport} disabled={exportRangeInvalid}
+                className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-default text-zinc-700 dark:text-zinc-300 px-4 py-2 rounded-lg text-sm">
+                {copied ? "Copied ✓" : "Copy to clipboard"}
+              </button>
             </div>
           </div>
         )}
